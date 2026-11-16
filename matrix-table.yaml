@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MATRIX DynamoDB tables - projects, chat sessions, LLM usage
+
+Resources:
+  Projects:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: matrix-projects
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: project_id, AttributeType: S}]
+      KeySchema: [{AttributeName: project_id, KeyType: HASH}]
+  Sessions:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: matrix-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: user_id, AttributeType: S}, {AttributeName: session_id, AttributeType: S}]
+      KeySchema: [{AttributeName: user_id, KeyType: HASH}, {AttributeName: session_id, KeyType: RANGE}]
+  Usage:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: matrix-usage
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{AttributeName: project_id, AttributeType: S}, {AttributeName: ts_id, AttributeType: S}]
+      KeySchema: [{AttributeName: project_id, KeyType: HASH}, {AttributeName: ts_id, KeyType: RANGE}]
+
+  # Attach this policy to the console Lambda's role
+  LambdaTablesPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: matrix-lambda-tables-and-cost
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:Query, dynamodb:Scan]
+            Resource:
+              - !GetAtt Projects.Arn
+              - !GetAtt Sessions.Arn
+              - !GetAtt Usage.Arn
+          - Effect: Allow
+            Action: ce:GetCostAndUsage
+            Resource: '*'
+
+Outputs:
+  PolicyArn:
+    Value: !Ref LambdaTablesPolicy
