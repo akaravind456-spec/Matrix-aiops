@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRE-L1 Working Buddy</title>
+<style>
+/* =========================================================
+   BASE
+   ========================================================= */
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0d1117;
+  --sidebar: #161b22;
+  --surface: #161b22;
+  --surface-2: #21262d;
+  --surface-3: #30363d;
+  --border: #30363d;
+  --text: #f0f6fc;
+  --muted: #8b949e;
+  --accent: #2f81f7;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d29922;
+  --purple: #a371f7;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+}
+
+button,
+textarea {
+  font-family: inherit;
+}
+
+/* =========================================================
+   APP
+   ========================================================= */
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+.sidebar {
+  width: 270px;
+  min-width: 270px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  padding: 20px 18px 15px;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 650;
+  font-size: 16px;
+}
+
+.brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    #2f81f7,
+    #a371f7
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+}
+
+.new-alert-wrapper {
+  padding: 3px 14px 15px;
+}
+
+.new-alert-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 11px 13px;
+  border-radius: 9px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.new-alert-button:hover {
+  background: var(--surface-3);
+  border-color: #484f58;
+}
+
+.plus {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.history-header {
+  padding: 8px 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+/* =========================================================
+   HISTORY + SLIM SCROLLBAR
+   ========================================================= */
+.history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 5px 9px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+.history::-webkit-scrollbar,
+.chat::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history::-webkit-scrollbar-track,
+.chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.history::-webkit-scrollbar-thumb,
+.chat::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 999px;
+}
+
+.history::-webkit-scrollbar-thumb:hover,
+.chat::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+.history-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 12px 9px;
+  line-height: 1.5;
+}
+
+.history-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 8px 10px 10px;
+  margin-bottom: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #c9d1d9;
+  cursor: pointer;
+  text-align: left;
+  transition: 0.15s;
+}
+
+.history-item:hover {
+  background: var(--surface-2);
+}
+
+.history-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.alert-number {
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 35px;
+  flex-shrink: 0;
+}
+
+.alert-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+/* =========================================================
+   DELETE ICON (shown on hover)
+   ========================================================= */
+.delete-button {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: 0.15s;
+}
+
+.history-item:hover .delete-button {
+  opacity: 1;
+}
+
+.delete-button:hover {
+  background: rgba(248, 81, 73, 0.14);
+  color: var(--red);
+}
+
+.delete-button:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--red);
+}
+
+.delete-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 13px 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+.main {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* =========================================================
+   TOP BAR
+   ========================================================= */
+.topbar {
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 22px;
+  flex-shrink: 0;
+}
+
+.current-chat-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.current-session {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.status-badge {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: #9ea7b3;
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.status-dot.busy {
+  background: var(--orange);
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding:
+    35px
+    30px
+    170px;
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+.messages {
+  max-width: 900px;
+  margin: auto;
+}
+
+/* =========================================================
+   WELCOME
+   ========================================================= */
+.welcome {
+  min-height: 55vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.welcome-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      135deg,
+      #2f81f7,
+      #a371f7
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-bottom: 20px;
+  box-shadow:
+    0 10px 30px
+    rgba(47, 129, 247, 0.2);
+}
+
+.welcome h1 {
+  font-size: 29px;
+  margin: 0 0 10px;
+}
+
+.welcome p {
+  color: var(--muted);
+  max-width: 530px;
+  line-height: 1.7;
+  margin: 0;
+  font-size: 14px;
+}
+
+.quick-cards {
+  display: grid;
+  grid-template-columns:
+    repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 650px;
+  margin-top: 28px;
+}
+
+.quick-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: left;
+  color: #c9d1d9;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.quick-card strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+/* =========================================================
+   USER MESSAGE
+   ========================================================= */
+.message-row {
+  margin-bottom: 30px;
+}
+
+.user-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.user-message {
+  max-width: 72%;
+  background: var(--surface-2);
+  border:
+    1px solid
+    var(--border);
+  border-radius:
+    18px 18px 4px 18px;
+  padding:
+    12px 16px;
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   ASSISTANT
+   ========================================================= */
+.assistant-row {
+  display: grid;
+  grid-template-columns:
+    38px
+    minmax(0, 1fr);
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.bot-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(
+      135deg,
+      #2f81f7,
+      #8957e5
+    );
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.assistant-content {
+  min-width: 0;
+}
+
+.assistant-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 3px 0 12px;
+}
+
+.ai-badge {
+  font-size: 9px;
+  color: #79c0ff;
+  background: rgba(47, 129, 247, 0.12);
+  border:
+    1px solid
+    rgba(47, 129, 247, 0.25);
+  padding: 3px 6px;
+  border-radius: 5px;
+}
+
+.assistant-message {
+  color: #d8dee4;
+  font-size: 14px;
+  line-height: 1.72;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-bottom: 7px;
+}
+
+/* =========================================================
+   ANALYZING INDICATOR
+   ========================================================= */
+.analyzing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.analyzing-text {
+  background:
+    linear-gradient(
+      90deg,
+      #8b949e 0%,
+      #f0f6fc 50%,
+      #8b949e 100%
+    );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 1.8s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: bounce 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+.composer-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding:
+    45px
+    25px
+    17px;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      transparent,
+      var(--bg) 35%
+    );
+}
+
+.composer-container {
+  max-width: 900px;
+  margin: auto;
+  pointer-events: auto;
+}
+
+/* =========================================================
+   QUICK ACTION POPUP (Learn / Escalate)
+   ========================================================= */
+.quick-actions {
+  display: none;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 9px;
+}
+
+.quick-actions.visible {
+  display: flex;
+  animation: popUp 0.2s ease;
+}
+
+@keyframes popUp {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.quick-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: #c9d1d9;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.15s;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.quick-action:hover {
+  background: var(--surface-3);
+  border-color: #484f58;
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.quick-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.quick-action .action-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.quick-action.learn .action-dot {
+  background: var(--accent);
+}
+
+.quick-action.escalate .action-dot {
+  background: var(--orange);
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--surface-2);
+  border:
+    1px solid
+    #3d444d;
+  border-radius: 18px;
+  padding: 8px 8px 8px 16px;
+  box-shadow:
+    0 8px 35px
+    rgba(0, 0, 0, 0.30);
+}
+
+.composer:focus-within {
+  border-color: #586069;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  min-height: 42px;
+  max-height: 160px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 4px;
+}
+
+textarea::placeholder {
+  color: #7d8590;
+}
+
+/* =========================================================
+   SEND BUTTON
+   ========================================================= */
+.send-button {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: var(--accent);
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.send-button:hover {
+  background: #388bfd;
+  transform: translateY(-1px);
+}
+
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.send-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.composer-footer {
+  text-align: center;
+  color: #6e7681;
+  font-size: 10px;
+  padding-top: 7px;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+@media (max-width: 780px) {
+  .sidebar {
+    width: 210px;
+    min-width: 210px;
+  }
+
+  .quick-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-button {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    display: none;
+  }
+
+  .chat {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .user-message {
+    max-width: 90%;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <!-- ==================================================
+       SIDEBAR
+       =================================================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">
+        <div class="brand-icon">
+          SRE
+        </div>
+        <span>
+          SRE-L1 Buddy
+        </span>
+        <span class="online-dot"></span>
+      </div>
+    </div>
+
+    <div class="new-alert-wrapper">
+      <button
+        class="new-alert-button"
+        onclick="createNewAlert()">
+        <span class="plus">+</span>
+        <span>
+          New Alert
+        </span>
+      </button>
+    </div>
+
+    <div class="history-header">
+      ALERT HISTORY
+    </div>
+
+    <div
+      class="history"
+      id="history">
+    </div>
+
+    <div class="sidebar-footer">
+      Local alert history
+    </div>
+  </aside>
+
+  <!-- ==================================================
+       MAIN
+       =================================================== -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div>
+        <div
+          class="current-chat-title"
+          id="currentChatTitle">
+          New Alert
+        </div>
+        <div
+          class="current-session"
+          id="currentSession">
+          Ready for troubleshooting
+        </div>
+      </div>
+
+      <div class="status-badge">
+        <span
+          class="status-dot"
+          id="statusDot"></span>
+        <span id="statusText">
+          n8n Agent Ready
+        </span>
+      </div>
+    </header>
+
+    <!-- CHAT -->
+    <div
+      class="chat"
+      id="chat">
+
+      <div
+        class="messages"
+        id="messages">
+      </div>
+
+    </div>
+
+    <!-- COMPOSER -->
+    <div class="composer-wrapper">
+      <div class="composer-container">
+
+        <!-- Learn / Escalate popup -->
+        <div
+          class="quick-actions"
+          id="quickActions">
+
+          <button
+            class="quick-action learn"
+            type="button"
+            onclick="sendQuickAction('learn')">
+            <span class="action-dot"></span>
+            Learn
+          </button>
+
+          <button
+            class="quick-action escalate"
+            type="button"
+            onclick="sendQuickAction('escalate')">
+            <span class="action-dot"></span>
+            Escalate
+          </button>
+
+        </div>
+
+        <div class="composer">
+          <textarea
+            id="messageInput"
+            rows="1"
+            placeholder="Paste an alert, error, or ask a follow-up question..."></textarea>
+
+          <button
+            class="send-button"
+            id="sendButton"
+            title="Send message"
+            aria-label="Send message"
+            onclick="sendMessage()">
+
+            <!-- Send arrow -->
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M5 12H19M13 6L19 12L13 18"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="composer-footer">
+          SRE-L1 Working Buddy &bull; AI-assisted troubleshooting
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURATION
+   ========================================================= */
+const webhookURL =
+  "https://aravindkrishna1108.app.n8n.cloud/webhook/sre-mentor-chat";
+
+const STORAGE_KEY =
+  "sreL1AlertHistoryV2";
+
+/* =========================================================
+   DOM
+   ========================================================= */
+const input =
+  document.getElementById("messageInput");
+const messagesContainer =
+  document.getElementById("messages");
+const historyContainer =
+  document.getElementById("history");
+const chat =
+  document.getElementById("chat");
+const sendButton =
+  document.getElementById("sendButton");
+const currentChatTitle =
+  document.getElementById("currentChatTitle");
+const currentSession =
+  document.getElementById("currentSession");
+const quickActions =
+  document.getElementById("quickActions");
+const statusDot =
+  document.getElementById("statusDot");
+const statusText =
+  document.getElementById("statusText");
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let alerts = [];
+let activeAlertId = null;
+let isSending = false;
+
+/* =========================================================
+   QUICK ACTION PROMPTS
+   ========================================================= */
+const QUICK_ACTION_PROMPTS = {
+  learn:
+    "Help me learn from this alert. Explain the probable root cause in more depth, " +
+    "what each troubleshooting command actually tells me, and what I should watch " +
+    "for next time as an L1 engineer.",
+
+  escalate:
+    "Prepare an escalation summary for L2/L3. Include the alert details, the L1 checks " +
+    "already performed and their purpose, current impact, and the specific information " +
+    "the next level will need from me."
+};
+
+/* =========================================================
+   STORAGE
+   ========================================================= */
+function loadAlerts() {
+  try {
+    const saved =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+
+    alerts =
+      saved
+        ? JSON.parse(saved)
+        : [];
+  }
+  catch (error) {
+    console.error(
+      "Unable to load history:",
+      error
+    );
+    alerts = [];
+  }
+}
+
+function saveAlerts() {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(alerts)
+    );
+  }
+  catch (error) {
+    console.error(
+      "Unable to save history:",
+      error
+    );
+  }
+}
+
+/* =========================================================
+   IDS
+   ========================================================= */
+function generateId() {
+  return (
+    Date.now().toString(36) +
+    "-" +
+    Math.random()
+      .toString(36)
+      .substring(2, 10)
+  );
+}
+
+function createSessionId() {
+  return (
+    "sre-" +
+    Date.now() +
+    "-" +
+    Math.random()
+      .toString(36)
+      .substring(2, 10)
+  );
+}
+
+/* =========================================================
+   ALERT NUMBER
+   ========================================================= */
+function getNextAlertNumber() {
+  let highest = 0;
+
+  alerts.forEach(
+    function(alert) {
+      if (
+        alert.alertNumber >
+        highest
+      ) {
+        highest =
+          alert.alertNumber;
+      }
+    }
+  );
+
+  return highest + 1;
+}
+
+function formatAlertNumber(number) {
+  return (
+    "#" +
+    String(number)
+      .padStart(3, "0")
+  );
+}
+
+/* =========================================================
+   TWO WORD TITLE
+   Every alert gets a two word issue name.
+   Most specific patterns are listed first.
+   ========================================================= */
+const TITLE_RULES = [
+  { keys: ["inode"],                                   title: "Inode Low" },
+  { keys: ["oomkilled", "out of memory", "oom killer"], title: "OOM Kill" },
+  { keys: ["too many open files", "file descriptor"],  title: "Descriptor Exhaustion" },
+  { keys: ["packet loss"],                             title: "Packet Loss" },
+  { keys: ["replication lag", "replica", "slave io"],  title: "Replication Lag" },
+  { keys: ["consumer lag", "kafka", "queue depth", "rabbitmq"], title: "Queue Lag" },
+  { keys: ["heap", "jvm", "garbage collection", "gc pause"],    title: "Heap Pressure" },
+  { keys: ["thread pool", "thread count", "deadlock"], title: "Thread Saturation" },
+  { keys: ["swap"],                                    title: "Swap Usage" },
+  { keys: ["load average", "high load"],               title: "High Load" },
+  { keys: ["cpu", "processor"],                        title: "CPU High" },
+  { keys: ["memory", "ram "],                          title: "Memory High" },
+  { keys: ["filesystem", "disk", "space", "volume", "mount"], title: "Disk Usage" },
+  { keys: ["ntp", "time sync", "clock offset", "chrony"],      title: "NTP Sync" },
+  { keys: ["ssh", "port 22"],                          title: "SSH Failure" },
+  { keys: ["dns", "resolve", "lookup failed", "nxdomain"],     title: "DNS Failure" },
+  { keys: ["certificate", "ssl", "tls", "x509"],       title: "SSL Expiry" },
+  { keys: ["postgres", "mysql", "oracle", "mongo", "database"], title: "DB Failure" },
+  { keys: ["redis", "memcached", "cache miss"],        title: "Cache Failure" },
+  { keys: ["oomkill", "pod", "kubernetes", "crashloop", "k8s"], title: "Pod Crash" },
+  { keys: ["container", "docker"],                     title: "Container Issue" },
+  { keys: ["nginx"],                                   title: "Nginx Issue" },
+  { keys: ["502", "503", "504", "5xx", "bad gateway"], title: "Gateway Error" },
+  { keys: ["404", "4xx", "forbidden", "403"],          title: "Request Rejected" },
+  { keys: ["latency", "slow response", "response time", "p95", "p99"], title: "High Latency" },
+  { keys: ["timeout", "timed out"],                    title: "Request Timeout" },
+  { keys: ["backup", "snapshot failed"],               title: "Backup Failure" },
+  { keys: ["cron", "scheduled job", "jenkins", "pipeline failed"], title: "Job Failure" },
+  { keys: ["login failed", "authentication", "unauthorized", "kerberos"], title: "Auth Failure" },
+  { keys: ["firewall", "iptables", "acl", "blocked"],  title: "Firewall Block" },
+  { keys: ["vpn", "tunnel"],                           title: "VPN Issue" },
+  { keys: ["reboot", "restarted", "uptime"],           title: "Host Reboot" },
+  { keys: ["zombie", "process", "pid"],                title: "Process Issue" },
+  { keys: ["log rotation", "log file", "logs growing"],title: "Log Growth" },
+  { keys: ["httpd", "apache", "tomcat", "service", "daemon", "application"], title: "Service Issue" },
+  { keys: ["network", "connection refused", "unreachable", "interface down"], title: "Network Issue" },
+  { keys: ["ping", "icmp", "host down", "no response"],title: "Host Down" }
+];
+
+const STOP_WORDS = [
+  "the", "a", "an", "and", "or", "for", "from", "with",
+  "this", "that", "there", "has", "have", "had", "been",
+  "was", "were", "are", "is", "its", "not", "but", "you",
+  "alert", "alerts", "warning", "critical", "error", "errors",
+  "issue", "problem", "please", "help", "check", "checking",
+  "found", "seeing", "getting", "showing", "reported",
+  "host", "server", "node", "instance", "machine", "system",
+  "name", "value", "status", "state", "time", "message",
+  "prod", "production", "monitoring", "monitor", "triggered"
+];
+
+function capitalizeWord(word) {
+  const clean =
+    word.substring(0, 14);
+
+  return (
+    clean
+      .charAt(0)
+      .toUpperCase() +
+    clean
+      .slice(1)
+      .toLowerCase()
+  );
+}
+
+/*
+  Fallback when no known pattern matches:
+  build a two word name from the alert text itself
+  so the history never shows a generic "New Alert".
+*/
+function buildTwoWordTitle(text) {
+  const words =
+    text
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(
+        function(word) {
+          return (
+            word.length > 2 &&
+            STOP_WORDS.indexOf(
+              word.toLowerCase()
+            ) === -1
+          );
+        }
+      )
+      .slice(0, 2)
+      .map(capitalizeWord);
+
+  if (words.length === 0) {
+    return "General Alert";
+  }
+
+  if (words.length === 1) {
+    return words[0] + " Alert";
+  }
+
+  return words.join(" ");
+}
+
+function generateShortTitle(text) {
+  const lower =
+    text.toLowerCase();
+
+  for (
+    let index = 0;
+    index < TITLE_RULES.length;
+    index++
+  ) {
+    const rule =
+      TITLE_RULES[index];
+
+    const matched =
+      rule.keys.some(
+        function(key) {
+          return (
+            lower.indexOf(key) !== -1
+          );
+        }
+      );
+
+    if (matched) {
+      return rule.title;
+    }
+  }
+
+  return buildTwoWordTitle(text);
+}
+
+/* =========================================================
+   CREATE NEW ALERT
+   ========================================================= */
+function createNewAlert() {
+  const alert = {
+    id:
+      generateId(),
+    alertNumber:
+      getNextAlertNumber(),
+    title:
+      "New Alert",
+    sessionId:
+      createSessionId(),
+    createdAt:
+      new Date().toISOString(),
+    messages:
+      []
+  };
+
+  alerts.unshift(
+    alert
+  );
+
+  activeAlertId =
+    alert.id;
+
+  saveAlerts();
+  renderHistory();
+  renderConversation();
+  input.focus();
+}
+
+/* =========================================================
+   ACTIVE ALERT
+   ========================================================= */
+function getActiveAlert() {
+  return alerts.find(
+    function(alert) {
+      return (
+        alert.id ===
+        activeAlertId
+      );
+    }
+  );
+}
+
+/* =========================================================
+   SWITCH ALERT
+   ========================================================= */
+function switchAlert(alertId) {
+  activeAlertId =
+    alertId;
+
+  renderHistory();
+  renderConversation();
+  input.focus();
+}
+
+/* =========================================================
+   DELETE ALERT
+   ========================================================= */
+function deleteAlert(alertId, event) {
+  event.stopPropagation();
+
+  const index =
+    alerts.findIndex(
+      function(alert) {
+        return (
+          alert.id === alertId
+        );
+      }
+    );
+
+  if (index === -1) {
+    return;
+  }
+
+  const wasActive =
+    alerts[index].id ===
+    activeAlertId;
+
+  alerts.splice(index, 1);
+  saveAlerts();
+
+  /*
+    When the open alert is deleted, fall back to the
+    nearest remaining alert, or start a fresh one.
+  */
+  if (wasActive) {
+    if (alerts.length === 0) {
+      createNewAlert();
+      return;
+    }
+
+    activeAlertId =
+      alerts[
+        Math.min(
+          index,
+          alerts.length - 1
+        )
+      ].id;
+  }
+
+  renderHistory();
+  renderConversation();
+}
+
+/* =========================================================
+   RENDER HISTORY
+   ========================================================= */
+function renderHistory() {
+  historyContainer.innerHTML =
+    "";
+
+  if (
+    alerts.length === 0
+  ) {
+    const empty =
+      document.createElement(
+        "div"
+      );
+
+    empty.className =
+      "history-empty";
+
+    empty.textContent =
+      "No alerts yet. Create a new alert to begin troubleshooting.";
+
+    historyContainer.appendChild(
+      empty
+    );
+
+    return;
+  }
+
+  alerts.forEach(
+    function(alert) {
+
+      const item =
+        document.createElement(
+          "div"
+        );
+
+      item.className =
+        "history-item";
+
+      if (
+        alert.id ===
+        activeAlertId
+      ) {
+        item.classList.add(
+          "active"
+        );
+      }
+
+      const number =
+        document.createElement(
+          "span"
+        );
+
+      number.className =
+        "alert-number";
+
+      number.textContent =
+        formatAlertNumber(
+          alert.alertNumber
+        );
+
+      const title =
+        document.createElement(
+          "span"
+        );
+
+      title.className =
+        "alert-title";
+
+      title.textContent =
+        alert.title;
+
+      title.title =
+        alert.title;
+
+      const remove =
+        document.createElement(
+          "button"
+        );
+
+      remove.className =
+        "delete-button";
+
+      remove.type =
+        "button";
+
+      remove.title =
+        "Delete alert";
+
+      remove.setAttribute(
+        "aria-label",
+        "Delete alert " +
+        formatAlertNumber(
+          alert.alertNumber
+        )
+      );
+
+      remove.innerHTML = `
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M4 7H20M10 11V17M14 11V17M6 7L7 19C7 20 7.9 21 9 21H15C16.1 21 17 20 17 19L18 7M9 7V4C9 3.4 9.4 3 10 3H14C14.6 3 15 3.4 15 4V7"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+        </svg>
+      `;
+
+      remove.onclick =
+        function(event) {
+          deleteAlert(
+            alert.id,
+            event
+          );
+        };
+
+      item.appendChild(
+        number
+      );
+
+      item.appendChild(
+        title
+      );
+
+      item.appendChild(
+        remove
+      );
+
+      item.onclick =
+        function() {
+          switchAlert(
+            alert.id
+          );
+        };
+
+      historyContainer.appendChild(
+        item
+      );
+
+    }
+  );
+}
+
+/* =========================================================
+   WELCOME SCREEN
+   ========================================================= */
+function createWelcome() {
+  const welcome =
+    document.createElement(
+      "div"
+    );
+
+  welcome.className =
+    "welcome";
+
+  welcome.innerHTML = `
+    <div class="welcome-logo">
+      SRE
+    </div>
+    <h1>
+      SRE-L1 Working Buddy
+    </h1>
+    <p>
+      Paste an alert or monitoring error below.
+      The AI agent will classify the issue,
+      explain what is known, and provide
+      L1 troubleshooting guidance.
+    </p>
+    <div class="quick-cards">
+      <div class="quick-card">
+        <strong>
+          Analyze
+        </strong>
+        Understand the alert and
+        probable issue category.
+      </div>
+      <div class="quick-card">
+        <strong>
+          Troubleshoot
+        </strong>
+        Receive practical L1
+        validation steps.
+      </div>
+      <div class="quick-card">
+        <strong>
+          Learn
+        </strong>
+        Ask follow-up questions
+        without losing context.
+      </div>
+    </div>
+  `;
+
+  return welcome;
+}
+
+/* =========================================================
+   QUICK ACTION VISIBILITY
+   Shown once the first prompt has been sent.
+   ========================================================= */
+function updateQuickActions() {
+  const alert =
+    getActiveAlert();
+
+  const shouldShow =
+    !!alert &&
+    alert.messages.length > 0;
+
+  quickActions.classList.toggle(
+    "visible",
+    shouldShow
+  );
+
+  const buttons =
+    quickActions
+      .querySelectorAll(
+        ".quick-action"
+      );
+
+  buttons.forEach(
+    function(button) {
+      button.disabled =
+        isSending;
+    }
+  );
+}
+
+/* =========================================================
+   BUSY STATE
+   ========================================================= */
+function setBusy(busy) {
+  isSending = busy;
+
+  sendButton.disabled =
+    busy;
+
+  statusDot.classList.toggle(
+    "busy",
+    busy
+  );
+
+  statusText.textContent =
+    busy
+      ? "Agent analyzing"
+      : "n8n Agent Ready";
+
+  currentSession.textContent =
+    busy
+      ? "Analyzing alert..."
+      : "Independent troubleshooting session";
+
+  updateQuickActions();
+}
+
+/* =========================================================
+   RENDER CONVERSATION
+   ========================================================= */
+function renderConversation() {
+  messagesContainer.innerHTML =
+    "";
+
+  const alert =
+    getActiveAlert();
+
+  if (!alert) {
+    currentChatTitle.textContent =
+      "New Alert";
+
+    currentSession.textContent =
+      "Ready for troubleshooting";
+
+    messagesContainer.appendChild(
+      createWelcome()
+    );
+
+    updateQuickActions();
+    return;
+  }
+
+  currentChatTitle.textContent =
+    formatAlertNumber(
+      alert.alertNumber
+    ) +
+    " | " +
+    alert.title;
+
+  currentSession.textContent =
+    isSending
+      ? "Analyzing alert..."
+      : "Independent troubleshooting session";
+
+  if (
+    alert.messages.length === 0
+  ) {
+    messagesContainer.appendChild(
+      createWelcome()
+    );
+
+    updateQuickActions();
+    return;
+  }
+
+  alert.messages.forEach(
+    function(message) {
+
+      if (
+        message.role ===
+        "user"
+      ) {
+        appendUserMessage(
+          message.content
+        );
+      }
+
+      if (
+        message.role ===
+        "assistant"
+      ) {
+        appendAssistantMessage(
+          message.content
+        );
+      }
+
+    }
+  );
+
+  updateQuickActions();
+  scrollBottom();
+}
+
+/* =========================================================
+   USER MESSAGE UI
+   ========================================================= */
+function appendUserMessage(text) {
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "message-row user-row";
+
+  const bubble =
+    document.createElement(
+      "div"
+    );
+
+  bubble.className =
+    "user-message";
+
+  bubble.textContent =
+    text;
+
+  row.appendChild(
+    bubble
+  );
+
+  messagesContainer.appendChild(
+    row
+  );
+}
+
+/* =========================================================
+   ASSISTANT MESSAGE UI
+   ========================================================= */
+function appendAssistantMessage(
+  text,
+  loading = false
+) {
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "message-row assistant-row";
+
+  const icon =
+    document.createElement(
+      "div"
+    );
+
+  icon.className =
+    "bot-icon";
+
+  icon.textContent =
+    "SRE";
+
+  const content =
+    document.createElement(
+      "div"
+    );
+
+  content.className =
+    "assistant-content";
+
+  const label =
+    document.createElement(
+      "div"
+    );
+
+  label.className =
+    "assistant-label";
+
+  label.innerHTML = `
+    SRE-L1 Working Buddy
+    <span class="ai-badge">
+      AI
+    </span>
+  `;
+
+  const message =
+    document.createElement(
+      "div"
+    );
+
+  message.className =
+    "assistant-message";
+
+  if (loading) {
+    message.classList.add(
+      "analyzing"
+    );
+
+    message.setAttribute(
+      "aria-live",
+      "polite"
+    );
+
+    message.innerHTML = `
+      <span class="analyzing-text">
+        Analyzing
+      </span>
+      <span class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </span>
+    `;
+  }
+  else {
+    message.textContent =
+      text;
+  }
+
+  content.appendChild(
+    label
+  );
+
+  content.appendChild(
+    message
+  );
+
+  row.appendChild(
+    icon
+  );
+
+  row.appendChild(
+    content
+  );
+
+  messagesContainer.appendChild(
+    row
+  );
+
+  return {
+    row: row,
+    message: message
+  };
+}
+
+function resolveLoadingMessage(
+  loadingUI,
+  text
+) {
+  loadingUI.message
+    .classList
+    .remove(
+      "analyzing"
+    );
+
+  loadingUI.message
+    .removeAttribute(
+      "aria-live"
+    );
+
+  loadingUI.message.innerHTML =
+    "";
+
+  loadingUI.message.textContent =
+    text;
+}
+
+/* =========================================================
+   QUICK ACTION SEND
+   ========================================================= */
+function sendQuickAction(type) {
+  if (isSending) {
+    return;
+  }
+
+  const prompt =
+    QUICK_ACTION_PROMPTS[type];
+
+  if (!prompt) {
+    return;
+  }
+
+  input.value =
+    prompt;
+
+  sendMessage();
+}
+
+/* =========================================================
+   SEND MESSAGE
+   ========================================================= */
+async function sendMessage() {
+  if (isSending) {
+    return;
+  }
+
+  const text =
+    input.value.trim();
+
+  if (!text) {
+    return;
+  }
+
+  let alert =
+    getActiveAlert();
+
+  /*
+    If no alert exists yet,
+    automatically create one.
+  */
+  if (!alert) {
+    createNewAlert();
+
+    alert =
+      getActiveAlert();
+  }
+
+  /*
+    First user message becomes
+    the two word alert title.
+  */
+  if (
+    alert.messages.length === 0
+  ) {
+    alert.title =
+      generateShortTitle(
+        text
+      );
+  }
+
+  /*
+    Store user message.
+  */
+  alert.messages.push({
+    role:
+      "user",
+    content:
+      text,
+    timestamp:
+      new Date().toISOString()
+  });
+
+  saveAlerts();
+  renderHistory();
+
+  /*
+    Remove welcome screen by
+    rendering the conversation.
+  */
+  renderConversation();
+
+  input.value =
+    "";
+
+  input.style.height =
+    "auto";
+
+  /*
+    Analyzing indicator.
+  */
+  const loadingUI =
+    appendAssistantMessage(
+      "",
+      true
+    );
+
+  scrollBottom();
+  setBusy(true);
+
+  try {
+
+    const response =
+      await fetch(
+        webhookURL,
+        {
+          method:
+            "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body:
+            JSON.stringify({
+              message:
+                text,
+              sessionId:
+                alert.sessionId
+            })
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error(
+        "n8n returned HTTP " +
+        response.status
+      );
+    }
+
+    const data =
+      await response.json();
+
+    const answer =
+      data.output ||
+      data.response ||
+      data.message ||
+      JSON.stringify(
+        data,
+        null,
+        2
+      );
+
+    /*
+      Skip storing and rendering if the
+      alert was deleted while waiting.
+    */
+    if (
+      alerts.indexOf(alert) === -1
+    ) {
+      return;
+    }
+
+    alert.messages.push({
+      role:
+        "assistant",
+      content:
+        answer,
+      timestamp:
+        new Date().toISOString()
+    });
+
+    saveAlerts();
+
+    if (
+      document.body.contains(
+        loadingUI.message
+      )
+    ) {
+      resolveLoadingMessage(
+        loadingUI,
+        answer
+      );
+    }
+
+  }
+  catch (error) {
+
+    console.error(
+      error
+    );
+
+    if (
+      document.body.contains(
+        loadingUI.message
+      )
+    ) {
+      resolveLoadingMessage(
+        loadingUI,
+        "Unable to get a response from the workflow.\n" +
+        error.message
+      );
+    }
+
+  }
+  finally {
+
+    setBusy(false);
+
+    input.focus();
+
+    scrollBottom();
+
+  }
+}
+
+/* =========================================================
+   SCROLL
+   ========================================================= */
+function scrollBottom() {
+  setTimeout(
+    function() {
+      chat.scrollTop =
+        chat.scrollHeight;
+    },
+    50
+  );
+}
+
+/* =========================================================
+   KEYBOARD
+   ========================================================= */
+input.addEventListener(
+  "keydown",
+  function(event) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      sendMessage();
+    }
+  }
+);
+
+/* =========================================================
+   AUTO RESIZE
+   ========================================================= */
+input.addEventListener(
+  "input",
+  function() {
+    this.style.height =
+      "auto";
+
+    this.style.height =
+      Math.min(
+        this.scrollHeight,
+        160
+      ) +
+      "px";
+  }
+);
+
+/* =========================================================
+   INITIALIZE
+   ========================================================= */
+function initialize() {
+  loadAlerts();
+
+  if (
+    alerts.length > 0
+  ) {
+    activeAlertId =
+      alerts[0].id;
+  }
+  else {
+    createNewAlert();
+    return;
+  }
+
+  renderHistory();
+  renderConversation();
+}
+
+initialize();
+</script>
+</body>
+</html>
