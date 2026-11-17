@@ -62,6 +62,12 @@ def a_obs(q, u):
         d = per_day[_day(_ts(t))]
         d['n'] += 1; d['err'] += t.get('status') == 'error'; d['tok'] += t.get('prompt_tokens', 0) + t.get('completion_tokens', 0)
     models, tools, llm_ms = defaultdict(lambda: {'calls': 0, 'in': 0, 'out': 0}), defaultdict(lambda: {'calls': 0, 'errors': 0, 'ms': 0}), []
+    for t in tr:
+        try:
+            for name, v in json.loads(t.get('models') or '{}').items():
+                m = models[name]; m['calls'] += v.get('calls', 0); m['in'] += v.get('in', 0); m['out'] += v.get('out', 0)
+        except Exception:
+            pass
     for t in tr[:25]:
         for e in _q(t['trace_id'], 100):
             try:
@@ -69,7 +75,7 @@ def a_obs(q, u):
             except Exception:
                 d = {}
             if e['kind'] == 'llm':
-                m = models[e['name']]; m['calls'] += 1; m['in'] += d.get('prompt_tokens', 0); m['out'] += d.get('completion_tokens', 0); llm_ms.append(e['ms'])
+                llm_ms.append(e['ms'])
             elif e['kind'] == 'tool':
                 s = tools[e['name']]; s['calls'] += 1; s['ms'] += e['ms']; s['errors'] += str(d.get('result', '')).startswith('Error')
     return {'ok': True, 'days': _days(q), 'summary': {

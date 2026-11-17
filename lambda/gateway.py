@@ -24,6 +24,16 @@ GROUPS = {
     'inc': ['list_incidents', 'incident_timeline', 'search_incidents', 'create_incident_ticket', 'assign_to_me', 'approve_remediation', 'reject_remediation', 'resolve_incident', 'raise_incident'],
     'aws': ['aws_read', 'aws_write'],
     'ops': ['patch_scan', 'patch_install', 'playbook_check', 'run_playbook', 'terraform_plan', 'terraform_apply', 'deploy_server', 'migrate_create_image', 'migrate_launch', 'data_sync', 'cmdb_lookup', 'ops_catalog', 'kb_read'],
+    # tools from matrix_ops_install.py (matrix_ops_skills.py and the extra ServiceNow tools)
+    'patch': ['patch_scan', 'patch_status', 'patch_install', 'snow_check_change_approval', 'snow_create_change', 'snow_add_work_note', 'snow_get_cmdb_ci'],
+    'migrate': ['migration_assess', 'migration_replicate', 'migration_image_status', 'migration_copy_image', 'migration_launch', 'migration_validate',
+                'migration_cutover', 'migration_rollback', 'snow_check_change_approval', 'snow_create_change', 'snow_add_work_note', 'snow_get_cmdb_ci'],
+    'deploy': ['deployment_plan', 'deployment_apply', 'migration_validate', 'snow_check_change_approval', 'snow_create_change', 'snow_add_work_note', 'snow_get_cmdb_ci'],
+    'decom': ['decommission_assess', 'decommission_snapshot', 'decommission_stop', 'decommission_terminate', 'migration_image_status', 'snow_check_change_approval',
+              'snow_create_change', 'snow_add_work_note', 'snow_update_cmdb_ci', 'snow_close_change', 'snow_get_cmdb_ci'],
+    'snow': ['snow_create_incident', 'snow_create_change', 'snow_create_sr_task', 'snow_add_work_note', 'snow_get_ticket', 'snow_escalate', 'snow_search_tickets',
+             'snow_check_change_approval', 'snow_get_cmdb_ci', 'snow_search_kb', 'snow_get_sla', 'snow_update_ticket', 'snow_close_change', 'snow_create_problem',
+             'snow_link_ticket', 'snow_attach_evidence', 'snow_update_cmdb_ci'],
 }
 KEYS = [
     ('power', r'\b(start|stop|reboot|restart server|shut ?down|power|boot)\b'),
@@ -31,7 +41,12 @@ KEYS = [
     ('svc', r'(service|nginx|httpd|crond|restart|kill|logs?\b)'),
     ('inc', r'(incident|ticket|inc\d|approve|reject|resolve|assign|escalat|raise)'),
     ('aws', r'(s3|bucket|volume|snapshot|cost|cloudtrail|activity|report|rds|lambda|vpc|aws|size|decommission|restore|delete|create|tag)'),
-    ('ops', r'(patch|deploy|migrat|terraform|playbook|ansible|sync|vcpu|provision|cmdb|runbook|sop)'),
+    ('ops', r'(patch|deploy|migrat|terraform|playbook|ansible|sync|vcpu|provision|cmdb|runbook|sop|\bami\b|image|availability zone|ap-southeast|job)'),
+    ('patch', r'(patch|security update|os update)'),
+    ('migrate', r'(migrat|cutover|cut over|rollback|replicat|another (az|region)|move (the )?(server|instance))'),
+    ('deploy', r'(deploy|provision|new (server|instance)|spin up|launch)'),
+    ('decom', r'(decommission|retire|terminate|remove (the )?(server|instance)|shut ?down permanently)'),
+    ('snow', r'(servicenow|snow|ticket|inc\d|chg\d|change request|problem|\bkb\b|knowledge|sla|\bci\b|cmdb|attach|link)'),
 ]
 
 
@@ -64,7 +79,7 @@ def _wait(e, txt):
 def post(cands, body, timeout=60):
     now = time.time()
     live = [c for c in cands if COOL.get(c['id'], 0) <= now] or sorted(cands, key=lambda c: COOL.get(c['id'], 0))[:1]
-    errs = []
+    errs, auth_failed = [], False
     for c in live:
         for attempt in (0, 1):
             try:
@@ -83,9 +98,14 @@ def post(cands, body, timeout=60):
                     COOL[c['id']] = time.time() + min(max(w, 5), 90); errs.append('%s rate limited' % c['label']); break
                 if e.code >= 500 or (e.code == 400 and 'tool' in txt.lower()):
                     COOL[c['id']] = time.time() + 30; errs.append('%s error %s' % (c['label'], e.code)); break
+                if e.code in (401, 403):
+                    # a bad or expired key on ONE slot must not stop the others: park it for 10 minutes and say which slot it was
+                    COOL[c['id']] = time.time() + 600; errs.append('%s rejected its API key (HTTP %s)' % (c['label'], e.code)); auth_failed = True; break
                 raise RuntimeError('LLM %s: %s' % (e.code, txt))
             except Exception as e:
                 COOL[c['id']] = time.time() + 20; errs.append('%s %s' % (c['label'], str(e)[:60])); break
+    if auth_failed:
+        raise RuntimeError('No model could answer (%s). Fix the key for the slot named above (Lambda environment variables).' % '; '.join(errs))
     raise RuntimeError('All models are busy or down (%s). Try again in a minute.' % '; '.join(errs))
 
 
@@ -118,7 +138,8 @@ def install(g):
 
     def _openai(messages):
         users = [m.get('content') or '' for m in messages if m.get('role') == 'user']
-        text = ' '.join(users[-3:]).lower()[-700:]
+        recent = [m.get('content') or '' for m in messages[-8:] if m.get('role') in ('user', 'assistant') and isinstance(m.get('content'), str)]
+        text = ' '.join(recent).lower()[-1500:]
         tools, matched = select_tools(text, g['TOOLS'])
         simple = not matched and len(users[-1] if users else '') < 80
         cands = ([SMALL] if simple and SMALL else []) + CHAIN

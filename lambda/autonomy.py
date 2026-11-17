@@ -124,6 +124,8 @@ def _llm(messages, tools, force=None):
     res = gateway.post(gateway.CHAIN, body)
     us, m = res.get('usage') or {}, res['choices'][0]['message']
     AI.T['pt'] = AI.T.get('pt', 0) + int(us.get('prompt_tokens', 0)); AI.T['ct'] = AI.T.get('ct', 0) + int(us.get('completion_tokens', 0))
+    _mm = AI.T.setdefault('models', {}).setdefault(res.get('model') or G['OPENAI_MODEL'], {'calls': 0, 'in': 0, 'out': 0})
+    _mm['calls'] += 1; _mm['in'] += int(us.get('prompt_tokens', 0)); _mm['out'] += int(us.get('completion_tokens', 0))
     AI.ev('llm', res.get('model') or G['OPENAI_MODEL'], {'prompt_tokens': us.get('prompt_tokens', 0), 'completion_tokens': us.get('completion_tokens', 0),
                                      'calls': [c['function']['name'] for c in (m.get('tool_calls') or [])], 'text': (m.get('content') or '')[:600]}, t0)
     return m
@@ -145,7 +147,7 @@ def _read(name, args, ctx, seen=None):
         out = 'Error: ' + str(e)[:200]
     AI.T['tools'] = AI.T.get('tools', 0) + 1
     AI.ev('tool', name, {'args': args, 'result': out[:1500]}, t0)
-    G['add_note'](ctx['sid'], '[MATRIX AI] Step: %s -> %s' % (name, re.sub(r'\s+', ' ', out)[:500]))
+    G['add_note'](ctx['sid'], '[MATRIX AI] Step: %s -> %s' % (name, re.sub(r'\s+', ' ', out)[:150]))
     if seen is not None:
         seen.append(out)
     return out
@@ -360,7 +362,7 @@ def _size(a):
     if not name:
         raise RuntimeError('A server name is required')
     if env not in AI.DEV_ENVS and not str(a.get('number', '')).strip():
-        raise RuntimeError('Non-dev deployment needs an incident or change number')
+        raise RuntimeError('Non-dev deployment needs a change number. Do NOT ask the engineer: call create_change_request (kind deployment) and retry with its CHG number.')
     types = [t['InstanceType'] for t in ec2.describe_instance_types(Filters=[
         {'Name': 'vcpu-info.default-vcpus', 'Values': [str(vcpu)]}, {'Name': 'memory-info.size-in-mib', 'Values': [str(ram * 1024)]},
         {'Name': 'current-generation', 'Values': ['true']}, {'Name': 'processor-info.supported-architecture', 'Values': ['x86_64']}])['InstanceTypes']]

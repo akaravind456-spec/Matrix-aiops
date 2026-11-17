@@ -54,7 +54,7 @@ def _put(item):
 def _summary():
     _put({'pk': 'TRACES', 'sk': T['sk'], 'trace_id': T['id'], 'user': T['user'], 'kind': T['kind'], 'prompt': T['prompt'],
           'prompt_tokens': T['pt'], 'completion_tokens': T['ct'], 'tools': T['tools'], 'status': T['status'],
-          'ms': int((time.time() - T['t0']) * 1000), 'ttl': int(time.time()) + TTL_DAYS * 86400})
+          'models': json.dumps(T.get('models', {})), 'ms': int((time.time() - T['t0']) * 1000), 'ttl': int(time.time()) + TTL_DAYS * 86400})
 
 
 def t_start(kind, user, prompt):
@@ -122,7 +122,7 @@ def _guard(inst, a, what):
     """Only servers tagged production/prod need an incident or change number. Untagged and dev servers need just the Confirm click."""
     env = _env(inst['id'])
     if env in ('prod', 'production') and not str(a.get('number', '')).strip():
-        raise RuntimeError('%s is a production server. %s needs an incident or change number: ask the engineer for it.' % (inst['host'], what))
+        raise RuntimeError('%s is a production server. %s needs a change number. Do NOT ask the engineer: call create_change_request for this server now, then retry with the CHG number it returns as `number`.' % (inst['host'], what))
     return env
 
 
@@ -369,7 +369,7 @@ def install(g):
         fn('ops_catalog', 'List the playbooks, Terraform modules and instance types this console may use.'),
         fn('job_status', 'Progress and output of a long job. Pass the job id returned by another tool.', {'job': 'Job id such as ssm:..., cb:... or ami:...'}),
         fn('patch_scan', 'Scan a server for missing OS patches (read-only). Returns a job id.', {'host': H}),
-        fn('patch_install', 'Install OS patches via SSM Patch Manager. Needs confirmation. Non-dev servers need an incident/change number.',
+        fn('patch_install', 'Install OS patches via SSM Patch Manager. Needs confirmation. Non-dev servers need a change number: call create_change_request first and pass its CHG number.',
            {'host': H, 'reboot': 'yes or no (default no)', 'number': N}, opt=('reboot', 'number')),
         fn('playbook_check', 'Dry-run an Ansible playbook in check mode (read-only). Returns a job id.',
            {'host': H, 'playbook': 'Playbook name from ops_catalog', 'extra_vars': 'Optional key=value pairs separated by spaces'}, opt=('extra_vars',)),
@@ -393,7 +393,7 @@ def install(g):
         "Always run the read-only check first (patch_scan, playbook_check, terraform_plan) and summarise it before proposing the change. "
         "Before changing a server call cmdb_lookup, and use kb_search for the approved runbook when one may exist. "
         "Long jobs return a job id: use job_status and never say a job finished until job_status shows Success or Complete. "
-        "For servers that are not Development, ask the engineer for the incident or change number and pass it as number.")
+        "For planned work on servers that are not Development, call create_change_request yourself and pass the returned CHG number as number. Never ask the engineer for a change number, error log or plan.")
 
     orig_openai, orig_run, orig_chat, orig_confirm = g['_openai'], g['_run_tool'], g['a_chat'], g['a_chat_confirm']
 
@@ -407,6 +407,8 @@ def install(g):
         us = r.get('usage') or {}
         m = r['choices'][0]['message']
         T['pt'] = T.get('pt', 0) + int(us.get('prompt_tokens', 0)); T['ct'] = T.get('ct', 0) + int(us.get('completion_tokens', 0))
+        _mm = T.setdefault('models', {}).setdefault(r.get('model') or g['OPENAI_MODEL'], {'calls': 0, 'in': 0, 'out': 0})
+        _mm['calls'] += 1; _mm['in'] += int(us.get('prompt_tokens', 0)); _mm['out'] += int(us.get('completion_tokens', 0))
         ev('llm', r.get('model') or g['OPENAI_MODEL'], {'prompt_tokens': us.get('prompt_tokens', 0), 'completion_tokens': us.get('completion_tokens', 0),
                                       'calls': [c['function']['name'] for c in (m.get('tool_calls') or [])], 'text': (m.get('content') or '')[:600]}, t0)
         return r
