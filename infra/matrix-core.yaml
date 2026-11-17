@@ -1,0 +1,251 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MATRIX core - trace table, ops bucket, artifact bucket, Lambda log group and the Lambda execution role. Deploy this BEFORE the executor stack and the app stack.
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: matrix-console-api
+    Description: Name the app stack will give the Lambda. The role is scoped to this name, so keep both the same.
+  ReadAccess:
+    Type: String
+    Default: ViewOnlyAccess
+    AllowedValues: [ViewOnlyAccess, ReadOnlyAccess, None]
+    Description: AWS managed policy behind the chat tool aws_read (reports, finding resource ids). ViewOnlyAccess is narrower. The code blocks reading secrets and data either way.
+  OperatorRoleArn:
+    Type: String
+    Default: ''
+    Description: Optional. ARN of an existing operator role for the chat tool aws_write. Leave empty to keep aws_write switched off.
+
+Conditions:
+  AttachViewOnly: !Equals [!Ref ReadAccess, ViewOnlyAccess]
+  AttachReadOnly: !Equals [!Ref ReadAccess, ReadOnlyAccess]
+  HasOperatorRole: !Not [!Equals [!Ref OperatorRoleArn, '']]
+
+Resources:
+  # Traces, learning drafts and agent state. aiops.py, autonomy.py, metrics.py and learning.py all need this table.
+  TraceTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: matrix-trace
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # Runbooks (knowledge base), playbooks, Terraform modules, migration scratch space
+  OpsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub matrix-ops-${AWS::AccountId}-${AWS::Region}
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # Where you upload matrix-lambda.zip for the app stack
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub matrix-artifacts-${AWS::AccountId}-${AWS::Region}
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # console_api.py reads its own log group for traces. 14 days is what the code expects.
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName}
+      RetentionInDays: 14
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: matrix-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !If [AttachViewOnly, 'arn:aws:iam::aws:policy/job-function/ViewOnlyAccess', !Ref 'AWS::NoValue']
+        - !If [AttachReadOnly, 'arn:aws:iam::aws:policy/ReadOnlyAccess', !Ref 'AWS::NoValue']
+      Policies:
+        - PolicyName: matrix-lambda-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # --- logging, and the traces page reading the function's own log group ---
+              - Sid: WriteOwnLogs
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${FunctionName}:*
+              - Sid: ReadOwnLogs
+                Effect: Allow
+                Action: [logs:FilterLogEvents, logs:GetLogEvents]
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${FunctionName}:*
+              - Sid: ReadCodeBuildAndOtherLogs
+                Effect: Allow
+                Action: [logs:GetLogEvents, logs:StartQuery, logs:GetQueryResults, logs:DescribeLogGroups, logs:StopQuery]
+                Resource: '*'
+              # --- the autonomous agent starts its own long runs by invoking itself ---
+              - Sid: InvokeSelf
+                Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}
+              # --- DynamoDB: trace table plus projects, sessions, usage (matrix-table.yaml) ---
+              - Sid: Tables
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query, dynamodb:Scan, dynamodb:BatchWriteItem]
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/matrix-*
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/matrix-*/index/*
+              # --- ops bucket: runbooks, playbooks, Terraform modules, migration data ---
+              - Sid: OpsBucketObjects
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub ${OpsBucket.Arn}/*
+              - Sid: OpsBucketList
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !GetAtt OpsBucket.Arn
+              # --- run commands and patching over SSM (no SSH), only on servers tagged matrix-managed ---
+              - Sid: SendCommandToTaggedServers
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                Condition:
+                  StringEquals:
+                    ssm:resourceTag/matrix-managed: 'true'
+              - Sid: SendCommandDocuments
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunPatchBaseline
+                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunAnsiblePlaybook
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/*
+              - Sid: SsmRead
+                Effect: Allow
+                Action:
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                  - ssm:ListCommands
+                  - ssm:DescribeInstanceInformation
+                  - ssm:DescribeInstancePatches
+                  - ssm:DescribeInstancePatchStates
+                Resource: '*'
+              # --- learned playbooks are created as SSM documents named MATRIX-LEARNED-* ---
+              - Sid: LearnedPlaybooks
+                Effect: Allow
+                Action:
+                  - ssm:CreateDocument
+                  - ssm:UpdateDocument
+                  - ssm:UpdateDocumentDefaultVersion
+                  - ssm:DescribeDocument
+                  - ssm:GetDocument
+                  - ssm:AddTagsToResource
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/MATRIX-LEARNED-*
+              # --- EC2: read, power actions on tagged servers, and the older migration tools ---
+              - Sid: Ec2Read
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeInstanceStatus
+                  - ec2:DescribeInstanceTypes
+                  - ec2:DescribeImages
+                  - ec2:DescribeSnapshots
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeAddresses
+                  - ec2:DescribeTags
+                Resource: '*'
+              - Sid: Ec2Power
+                Effect: Allow
+                Action: [ec2:StartInstances, ec2:StopInstances, ec2:RebootInstances]
+                Resource: !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/matrix-managed: 'true'
+              - Sid: Ec2MigrationAndSnapshots
+                Effect: Allow
+                Action: [ec2:CreateImage, ec2:CreateSnapshot, ec2:RunInstances, ec2:CreateTags]
+                Resource: '*'
+              - Sid: PassInstanceRoleOnly
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/matrix-instance-role-*
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: ec2.amazonaws.com
+              # --- observability, alarms, load balancers, change history, cost ---
+              - Sid: ObservabilityRead
+                Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:GetMetricStatistics
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DescribeAlarmHistory
+                  - cloudtrail:LookupEvents
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - ce:GetCostAndUsage
+                Resource: '*'
+              # --- Terraform deployments run as a CodeBuild project named matrix-* ---
+              - Sid: TerraformBuilds
+                Effect: Allow
+                Action: [codebuild:StartBuild, codebuild:BatchGetBuilds]
+                Resource: !Sub arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/matrix-*
+              # --- the scoped executor and decommission roles from matrix-iam-executor.yaml ---
+              - Sid: AssumeScopedRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/matrix-executor-*
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/matrix-decommission-*
+              - !If
+                - HasOperatorRole
+                - Sid: AssumeOperatorRole
+                  Effect: Allow
+                  Action: sts:AssumeRole
+                  Resource: !Ref OperatorRoleArn
+                - !Ref 'AWS::NoValue'
+
+Outputs:
+  LambdaRoleArn:
+    Value: !GetAtt LambdaRole.Arn
+    Description: Use as TrustedLambdaRoleArn in the executor stack and as the role in the app stack
+  TraceTableName:
+    Value: !Ref TraceTable
+  OpsBucketName:
+    Value: !Ref OpsBucket
+  ArtifactBucketName:
+    Value: !Ref ArtifactBucket
+    Description: Upload matrix-lambda.zip here before creating the app stack
+  LogGroupName:
+    Value: !Ref LogGroup

@@ -1,0 +1,342 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MATRIX app - the console Lambda, its Function URL and the learning-scan schedule. Deploy AFTER matrix-core, matrix-iam-executor and matrix-s3, and after matrix-lambda.zip is uploaded to the artifact bucket.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Code and role }
+        Parameters: [FunctionName, CodeBucket, CodeKey, LambdaRoleArn, WebsiteUrl]
+      - Label: { default: ServiceNow }
+        Parameters: [SnBase, SnUser, SnPass, SnAiUser, SnAiGroup, SnL2Group, SnL3Group, L1Group, L2Group]
+      - Label: { default: Sign-in }
+        Parameters: [TokenSecret, UsersJson, LeadRoles, AgentKey]
+      - Label: { default: LLM primary }
+        Parameters: [LlmUrl, LlmApiKey, LlmModel, LlmSmallModel, LlmExtraModels]
+      - Label: { default: LLM standby 1 }
+        Parameters: [Fb1Url, Fb1Key, Fb1Model]
+      - Label: { default: LLM standby 2 }
+        Parameters: [Fb2Url, Fb2Key, Fb2Model]
+      - Label: { default: LLM standby 3 }
+        Parameters: [Fb3Url, Fb3Key, Fb3Model]
+      - Label: { default: AWS operations }
+        Parameters: [Environment, ExecutorRoleArn, DecommissionRoleArn, InstanceProfile, SubnetId, SecurityGroupId, AuditLogGroup, OpsBucket, TraceTable, OperatorRoleArn, MaxVcpu, AllowedTypes, Services, IngestUrl, TfProject, TfModules, Playbooks]
+      - Label: { default: Agent behaviour }
+        Parameters: [AutoAfter, Families, RagMin, RagRequired, LearnScan, EvalHost]
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: matrix-console-api
+    Description: Must equal the FunctionName used in the core stack.
+  CodeBucket:
+    Type: String
+    Description: ArtifactBucketName output of the core stack
+  CodeKey:
+    Type: String
+    Default: matrix-lambda.zip
+    Description: Key of the zip you uploaded to that bucket
+  LambdaRoleArn:
+    Type: String
+    Description: LambdaRoleArn output of the core stack
+  WebsiteUrl:
+    Type: String
+    Default: '*'
+    Description: Origin allowed to call the Function URL, for example http://matrix-console-123456789012-ap-southeast-2.s3-website-ap-southeast-2.amazonaws.com . Use * only while testing.
+
+  SnBase:
+    Type: String
+    Description: https://devXXXXXX.service-now.com with no path and no trailing slash
+  SnUser:
+    Type: String
+  SnPass:
+    Type: String
+    NoEcho: true
+  SnAiUser:
+    Type: String
+    Default: matrix.ai
+  SnAiGroup:
+    Type: String
+    Default: MATRIX-AI-L1
+  SnL2Group:
+    Type: String
+    Default: MATRIX-L2
+  SnL3Group:
+    Type: String
+    Default: MATRIX-L3
+  L1Group:
+    Type: String
+    Default: MATRIX-AI-L1
+  L2Group:
+    Type: String
+    Default: L2 Cloud Engineers
+
+  TokenSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Generate a NEW random value of 32+ characters. Do not reuse the source account's.
+  UsersJson:
+    Type: String
+    NoEcho: true
+    Default: '[]'
+    Description: The same USERS JSON the source Lambda uses (sign-in accounts). Re-create passwords where you can.
+  LeadRoles:
+    Type: String
+    Default: L2 lead,lead,admin
+  AgentKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: NEW random value for the autonomous agent's internal key
+
+  LlmUrl:
+    Type: String
+    Default: https://integrate.api.nvidia.com/v1/chat/completions
+  LlmApiKey:
+    Type: String
+    NoEcho: true
+    Description: Primary LLM key (NVIDIA nvapi-...)
+  LlmModel:
+    Type: String
+    Description: Exact model ID from the provider's model page. Must support tool calling.
+  LlmSmallModel:
+    Type: String
+    Default: ''
+  LlmExtraModels:
+    Type: String
+    Default: ''
+    Description: Comma list of extra models on the same provider and key
+  Fb1Url:
+    Type: String
+    Default: https://api.groq.com/openai/v1/chat/completions
+  Fb1Key:
+    Type: String
+    NoEcho: true
+    Default: ''
+  Fb1Model:
+    Type: String
+    Default: ''
+  Fb2Url:
+    Type: String
+    Default: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+  Fb2Key:
+    Type: String
+    NoEcho: true
+    Default: ''
+  Fb2Model:
+    Type: String
+    Default: ''
+  Fb3Url:
+    Type: String
+    Default: https://openrouter.ai/api/v1/chat/completions
+  Fb3Key:
+    Type: String
+    NoEcho: true
+    Default: ''
+  Fb3Model:
+    Type: String
+    Default: ''
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, prod]
+  ExecutorRoleArn:
+    Type: String
+    Description: ExecutorRoleArn output of the executor stack
+  DecommissionRoleArn:
+    Type: String
+    Default: ''
+    Description: Only if you enabled the optional decommission role. Empty keeps terminate switched off.
+  InstanceProfile:
+    Type: String
+    Description: InstanceProfileName output of the executor stack
+  SubnetId:
+    Type: String
+    Default: ''
+    Description: Subnet for servers the agent deploys
+  SecurityGroupId:
+    Type: String
+    Default: ''
+  AuditLogGroup:
+    Type: String
+    Description: AuditLogGroupName output of the executor stack
+  OpsBucket:
+    Type: String
+    Description: OpsBucketName output of the core stack
+  TraceTable:
+    Type: String
+    Default: matrix-trace
+  OperatorRoleArn:
+    Type: String
+    Default: ''
+    Description: Same value as in the core stack, or empty
+  MaxVcpu:
+    Type: Number
+    Default: 0
+    Description: 0 means no cap on server size
+  AllowedTypes:
+    Type: String
+    Default: t3.micro,t3.small,t3.medium
+  Services:
+    Type: String
+    Default: nginx,httpd,crond
+  IngestUrl:
+    Type: String
+    Default: ''
+    Description: Alarm ingest webhook, if you use one (see docs/deployment-guide.md)
+  TfProject:
+    Type: String
+    Default: ''
+  TfModules:
+    Type: String
+    Default: ''
+  Playbooks:
+    Type: String
+    Default: ''
+
+  AutoAfter:
+    Type: Number
+    Default: 3
+  Families:
+    Type: String
+    Default: m5,m6i,t3
+  RagMin:
+    Type: String
+    Default: '0.5'
+  RagRequired:
+    Type: String
+    Default: '1'
+    AllowedValues: ['0', '1']
+  LearnScan:
+    Type: String
+    Default: ENABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: Set DISABLED while the old account's agent is still running against the same ServiceNow
+  EvalHost:
+    Type: String
+    Default: matrix-linux-01
+
+Resources:
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Runtime: python3.12
+      Handler: lambda_function.handler
+      MemorySize: 512
+      Timeout: 300
+      Role: !Ref LambdaRoleArn
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      LoggingConfig:
+        LogGroup: !Sub /aws/lambda/${FunctionName}
+      Environment:
+        Variables:
+          SN_BASE: !Ref SnBase
+          SN_USER: !Ref SnUser
+          SN_PASS: !Ref SnPass
+          SN_AI_USER: !Ref SnAiUser
+          SN_AI_GROUP: !Ref SnAiGroup
+          SN_L2_GROUP: !Ref SnL2Group
+          SN_L3_GROUP: !Ref SnL3Group
+          L1_GROUP: !Ref L1Group
+          L2_GROUP: !Ref L2Group
+          TOKEN_SECRET: !Ref TokenSecret
+          USERS: !Ref UsersJson
+          LEAD_ROLES: !Ref LeadRoles
+          AGENT_KEY: !Ref AgentKey
+          ALLOWED_ORIGIN: !Ref WebsiteUrl
+          OPENAI_URL: !Ref LlmUrl
+          OPENAI_API_KEY: !Ref LlmApiKey
+          OPENAI_MODEL: !Ref LlmModel
+          LLM_SMALL_MODEL: !Ref LlmSmallModel
+          LLM_EXTRA_MODELS: !Ref LlmExtraModels
+          LLM_FALLBACK_URL: !Ref Fb1Url
+          LLM_FALLBACK_KEY: !Ref Fb1Key
+          LLM_FALLBACK_MODEL: !Ref Fb1Model
+          LLM_FALLBACK_URL_2: !Ref Fb2Url
+          LLM_FALLBACK_KEY_2: !Ref Fb2Key
+          LLM_FALLBACK_MODEL_2: !Ref Fb2Model
+          LLM_FALLBACK_URL_3: !Ref Fb3Url
+          LLM_FALLBACK_KEY_3: !Ref Fb3Key
+          LLM_FALLBACK_MODEL_3: !Ref Fb3Model
+          ENVIRONMENT: !Ref Environment
+          EXECUTOR_ROLE_ARN: !Ref ExecutorRoleArn
+          DECOMMISSION_ROLE_ARN: !Ref DecommissionRoleArn
+          INSTANCE_PROFILE: !Ref InstanceProfile
+          SUBNET_ID: !Ref SubnetId
+          SECURITY_GROUP_ID: !Ref SecurityGroupId
+          AUDIT_LOG_GROUP: !Ref AuditLogGroup
+          OPS_BUCKET: !Ref OpsBucket
+          TRACE_TABLE: !Ref TraceTable
+          OPERATOR_ROLE_ARN: !Ref OperatorRoleArn
+          MAX_VCPU: !Ref MaxVcpu
+          ALLOWED_TYPES: !Ref AllowedTypes
+          SERVICES: !Ref Services
+          INGEST_URL: !Ref IngestUrl
+          TF_PROJECT: !Ref TfProject
+          TF_MODULES: !Ref TfModules
+          PLAYBOOKS: !Ref Playbooks
+          AUTO_AFTER: !Ref AutoAfter
+          FAMILIES: !Ref Families
+          RAG_MIN: !Ref RagMin
+          RAG_REQUIRED: !Ref RagRequired
+          EVAL_HOST: !Ref EvalHost
+
+  # The console signs users in itself (token), so the URL itself is open and CORS limits the browser origin.
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins: [!Ref WebsiteUrl]
+        AllowMethods: ['*']
+        AllowHeaders: [content-type, authorization]
+        MaxAge: 86400
+
+  UrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
+  UrlInvokeViaUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+
+  # Starts the automatic learning scan every 5 minutes
+  LearnScanRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${FunctionName}-learn-scan
+      Description: MATRIX learning scan of resolved, escalated incidents
+      ScheduleExpression: rate(5 minutes)
+      State: !Ref LearnScan
+      Targets:
+        - Id: matrix-learn-scan
+          Arn: !GetAtt Function.Arn
+          Input: '{"matrix_task":"learn_scan"}'
+
+  LearnScanPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LearnScanRule.Arn
+
+Outputs:
+  FunctionUrl:
+    Value: !GetAtt FunctionUrl.FunctionUrl
+    Description: Paste this into the console sign-in page as the Lambda Function URL
+  FunctionArn:
+    Value: !GetAtt Function.Arn

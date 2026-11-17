@@ -1,6 +1,8 @@
 # Lambda environment variables (names only, never commit real values)
 
-Set these in Lambda, Configuration, Environment variables. Copy the real values from the source account's Lambda
+If you deploy with `infra/matrix-app.yaml`, you type these as stack parameters and CloudFormation sets the variables for you
+(`SnBase`=SN_BASE, `LlmApiKey`=OPENAI_API_KEY, `Fb1Key`=LLM_FALLBACK_KEY, and so on). This list is for reference, or for setting
+them by hand in Lambda, Configuration, Environment variables. Copy real values from the source account's Lambda
 into a private note, not into this repo.
 
 ## Core
