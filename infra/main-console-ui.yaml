@@ -1,0 +1,276 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MATRIX console Lambda (chat agent, autonomous agent, RAG, traces, automatic learning) using an existing S3 bucket and DynamoDB table
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Default: matrix-ops-ak
+    Description: "Existing bucket. Holds the code zip and the knowledge base"
+  CodeKey:
+    Type: String
+    Default: code/matrix.console6.zip
+    Description: "Exact S3 key of the code zip. Use a new file name for every release"
+  TableName:
+    Type: String
+    Default: matrix-data
+    Description: "Existing DynamoDB table (partition key pk String and sort key sk String)"
+  FunctionName:
+    Type: String
+    Default: matrix-console
+  SnBase:
+    Type: String
+    Description: "ServiceNow URL, for example https://dev12345.service-now.com"
+  SnUser:
+    Type: String
+  SnPassword:
+    Type: String
+    NoEcho: true
+  TokenSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 24
+    Description: "Long random string used to sign login tokens"
+  UsersJson:
+    Type: String
+    NoEcho: true
+    Description: "Console users as a JSON list with keys u, p, name, role and snUser"
+  Services:
+    Type: String
+    Default: "nginx,httpd,crond"
+    Description: "Services the agent may start, stop and restart"
+  OpenAiKey:
+    Type: String
+    NoEcho: true
+    Description: "LLM API key"
+  OpenAiUrl:
+    Type: String
+    Default: "https://api.groq.com/openai/v1/chat/completions"
+  OpenAiModel:
+    Type: String
+    Description: "A model that supports tool calling"
+  AgentKey:
+    Type: String
+    NoEcho: true
+    MinLength: 24
+    Description: "Long random string that lets the alarm flow call the agent"
+  LlmExtraModels:
+    Type: String
+    Default: ""
+    Description: "Optional. Comma list of extra models on the same provider, used when the main model is rate limited"
+  LlmSmallModel:
+    Type: String
+    Default: ""
+    Description: "Optional. Small cheap model used first for simple questions"
+  FallbackUrl:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 1: chat completions URL. Leave empty to use the same provider as the main model"
+  FallbackKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: "Optional. Standby 1: API key"
+  FallbackModel:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 1: model name"
+  Fallback2Url:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 2: chat completions URL. Leave empty to use the same provider as the main model"
+  Fallback2Key:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: "Optional. Standby 2: API key"
+  Fallback2Model:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 2: model name"
+  Fallback3Url:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 3: chat completions URL. Leave empty to use the same provider as the main model"
+  Fallback3Key:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: "Optional. Standby 3: API key"
+  Fallback3Model:
+    Type: String
+    Default: ""
+    Description: "Optional. Standby 3: model name"
+  IngestUrl:
+    Type: String
+    Default: ""
+    Description: "Optional. Your existing alarm ingest webhook"
+  RagRequired:
+    Type: String
+    Default: "0"
+    AllowedValues: ["0", "1"]
+    Description: "Use 0 while the knowledge base is empty and 1 afterwards"
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: "Address the console page is served from. Use * while testing"
+  CloseCode:
+    Type: String
+    Default: "Solution provided"
+  LearnSelfApprove:
+    Type: String
+    Default: "0"
+    AllowedValues: ["0", "1"]
+    Description: "0 = the engineer who resolved a ticket cannot approve its learning draft. 1 = allowed (useful for a one-user demo)"
+  LearnScanEnabled:
+    Type: String
+    Default: "ENABLED"
+    AllowedValues: ["ENABLED", "DISABLED"]
+    Description: "Turns the 5-minute automatic learning scan on or off"
+
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole', 'arn:aws:iam::aws:policy/ReadOnlyAccess']
+      Policies:
+        - PolicyName: matrix-console
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Ec2AndAlarmsRead
+                Effect: Allow
+                Action: ['ec2:DescribeInstances', 'ec2:DescribeTags', 'ec2:DescribeInstanceStatus', 'ec2:DescribeInstanceTypes', 'ec2:DescribeImages', 'ec2:DescribeSubnets', 'cloudwatch:DescribeAlarms']
+                Resource: '*'
+              - Sid: Ec2Migration
+                Effect: Allow
+                Action: ['ec2:CreateImage', 'ec2:RunInstances', 'ec2:CreateTags', 'ec2:StartInstances', 'ec2:StopInstances', 'ec2:RebootInstances']
+                Resource: '*'
+              - Sid: PassInstanceProfile
+                Effect: Allow
+                Action: 'iam:PassRole'
+                Resource: '*'
+                Condition: {StringEquals: {'iam:PassedToService': 'ec2.amazonaws.com'}}
+              - Sid: Ssm
+                Effect: Allow
+                Action: ['ssm:SendCommand', 'ssm:GetCommandInvocation', 'ssm:ListCommandInvocations']
+                Resource: '*'
+              - Sid: LearnedPlaybookDocuments
+                Effect: Allow
+                Action: ['ssm:CreateDocument', 'ssm:UpdateDocument', 'ssm:UpdateDocumentDefaultVersion', 'ssm:DescribeDocument', 'ssm:AddTagsToResource']
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/MATRIX-LEARNED-*'
+              - Sid: Terraform
+                Effect: Allow
+                Action: ['codebuild:StartBuild', 'codebuild:BatchGetBuilds', 'logs:GetLogEvents']
+                Resource: '*'
+              - Sid: Table
+                Effect: Allow
+                Action: ['dynamodb:PutItem', 'dynamodb:GetItem', 'dynamodb:UpdateItem', 'dynamodb:Query']
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}'
+              - Sid: OpsBucket
+                Effect: Allow
+                Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject']
+                Resource: !Sub 'arn:aws:s3:::${CodeBucket}/*'
+              - Sid: OpsBucketList
+                Effect: Allow
+                Action: 's3:ListBucket'
+                Resource: !Sub 'arn:aws:s3:::${CodeBucket}'
+              - Sid: AssumeOperator
+                Effect: Allow
+                Action: 'sts:AssumeRole'
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/matrix-operator-role'
+              - Sid: SelfInvoke
+                Effect: Allow
+                Action: 'lambda:InvokeFunction'
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}'
+
+  OperatorRole:
+    Type: AWS::IAM::Role
+    DependsOn: Role
+    Properties:
+      RoleName: matrix-operator-role
+      Description: Assumed by MATRIX for confirmed changes, narrowed by a session policy to one service for 15 minutes
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {AWS: !GetAtt Role.Arn}, Action: 'sts:AssumeRole'}]
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/PowerUserAccess']
+
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Runtime: python3.12
+      Handler: lambda_function.handler
+      Role: !GetAtt Role.Arn
+      Timeout: 300
+      MemorySize: 512
+      Code: {S3Bucket: !Ref CodeBucket, S3Key: !Ref CodeKey}
+      Environment:
+        Variables:
+          SN_BASE: !Ref SnBase
+          SN_USER: !Ref SnUser
+          SN_PASS: !Ref SnPassword
+          TOKEN_SECRET: !Ref TokenSecret
+          USERS: !Ref UsersJson
+          SERVICES: !Ref Services
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          INGEST_URL: !Ref IngestUrl
+          CLOSE_CODE: !Ref CloseCode
+          OPENAI_API_KEY: !Ref OpenAiKey
+          OPENAI_URL: !Ref OpenAiUrl
+          OPENAI_MODEL: !Ref OpenAiModel
+          TRACE_TABLE: !Ref TableName
+          OPS_BUCKET: !Ref CodeBucket
+          AGENT_KEY: !Ref AgentKey
+          RAG_REQUIRED: !Ref RagRequired
+          LLM_EXTRA_MODELS: !Ref LlmExtraModels
+          LLM_SMALL_MODEL: !Ref LlmSmallModel
+          LLM_FALLBACK_URL: !Ref FallbackUrl
+          LLM_FALLBACK_KEY: !Ref FallbackKey
+          LLM_FALLBACK_MODEL: !Ref FallbackModel
+          LLM_FALLBACK_URL_2: !Ref Fallback2Url
+          LLM_FALLBACK_KEY_2: !Ref Fallback2Key
+          LLM_FALLBACK_MODEL_2: !Ref Fallback2Model
+          LLM_FALLBACK_URL_3: !Ref Fallback3Url
+          LLM_FALLBACK_KEY_3: !Ref Fallback3Key
+          LLM_FALLBACK_MODEL_3: !Ref Fallback3Model
+          OPERATOR_ROLE_ARN: !GetAtt OperatorRole.Arn
+          LEARN_SELF_APPROVE: !Ref LearnSelfApprove
+
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties: {TargetFunctionArn: !GetAtt Function.Arn, AuthType: NONE}
+
+  UrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref Function, Action: 'lambda:InvokeFunctionUrl', Principal: '*', FunctionUrlAuthType: NONE}
+
+  UrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties: {FunctionName: !Ref Function, Action: 'lambda:InvokeFunction', Principal: '*', InvokedViaFunctionUrl: true}
+
+  LearningScanRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: MATRIX automatic learning scan (finds closed incidents that the agent escalated to L2)
+      ScheduleExpression: rate(5 minutes)
+      State: !Ref LearnScanEnabled
+      Targets:
+        - Id: learn-scan
+          Arn: !GetAtt Function.Arn
+          Input: '{"matrix_task": "learn_scan"}'
+
+  LearningScanPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LearningScanRule.Arn
+
+Outputs:
+  ConsoleApiUrl:
+    Description: Paste this into the console page's sign-in screen
+    Value: !GetAtt FunctionUrl.FunctionUrl
