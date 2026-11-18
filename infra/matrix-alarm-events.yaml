@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  MATRIX alarm triggers. When a CloudWatch alarm goes into ALARM, EventBridge calls the existing MATRIX Lambda, which creates
+  the ServiceNow incident and starts the agent. An optional 5-minute sweep catches alarms that were missed.
+  Small stack: it only adds two EventBridge rules and the permissions for them to call the function. It changes nothing else.
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: matrix-console
+    Description: Name of the MATRIX Lambda function (the one that has matrix_alarm_intake.py).
+  AlarmRuleEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Turn the instant alarm-to-incident rule on or off.
+  SweepEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Also run a regular sweep of alarms that are in ALARM (safety net).
+  SweepMinutes:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 60
+    Description: How often the sweep runs, in minutes.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: {default: Where it sends alarms}
+        Parameters: [FunctionName]
+      - Label: {default: Switches}
+        Parameters: [AlarmRuleEnabled, SweepEnabled, SweepMinutes]
+
+Conditions:
+  AlarmOn: !Equals [!Ref AlarmRuleEnabled, 'true']
+  SweepOn: !Equals [!Ref SweepEnabled, 'true']
+
+Resources:
+  AlarmRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: matrix-alarm-to-incident
+      Description: CloudWatch alarm enters ALARM, so MATRIX creates an incident and starts the agent
+      State: !If [AlarmOn, ENABLED, DISABLED]
+      EventPattern:
+        source: [aws.cloudwatch]
+        detail-type: [CloudWatch Alarm State Change]
+        detail:
+          state:
+            value: [ALARM]
+      Targets:
+        - Id: matrix-console
+          Arn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}
+
+  AlarmRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AlarmRule.Arn
+
+  SweepRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: matrix-alarm-sweep
+      Description: Regular check for alarms in ALARM that have no open incident
+      State: !If [SweepOn, ENABLED, DISABLED]
+      ScheduleExpression: !Sub rate(${SweepMinutes} minutes)
+      Targets:
+        - Id: matrix-console
+          Arn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}
+          Input: '{"matrix_task": "alarm_sweep"}'
+
+  SweepRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SweepRule.Arn
+
+Outputs:
+  AlarmRule:
+    Description: Instant rule
+    Value: !Ref AlarmRule
+  SweepRule:
+    Description: Sweep rule
+    Value: !Ref SweepRule
