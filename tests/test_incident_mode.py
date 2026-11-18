@@ -88,6 +88,12 @@ class T(unittest.TestCase):
         self.assertIn("INC0010010", r)
         self.assertEqual(next(c for c in calls if c[0] == "POST")[1], "incident")
 
+    def test_wording_never_asks_for_chg_in_incident_mode(self):
+        s = ch._to_incident_wording("Planned work is a CHANGE, not an incident. Create a CHANGE REQUEST and pass its CHG number. Change number (CHG...) is needed.")
+        self.assertNotIn("CHG", s)
+        self.assertNotIn("CHANGE REQUEST", s)
+        self.assertIn("INC number", s)
+
     def test_mode_helper(self):
         self.assertFalse(mode.incident_mode())
         os.environ["CHANGE_MODE"] = " Incident "

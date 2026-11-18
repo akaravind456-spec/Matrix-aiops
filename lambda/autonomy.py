@@ -364,7 +364,7 @@ def _size(a):
     if not name:
         raise RuntimeError('A server name is required')
     if env not in AI.DEV_ENVS and not str(a.get('number', '')).strip():
-        raise RuntimeError('Non-dev deployment needs a change number. Do NOT ask the engineer: call create_change_request (kind deployment) and retry with its CHG number.')
+        raise RuntimeError('Non-dev deployment needs a change or incident number. Do NOT ask the engineer: call create_change_request (kind deployment) and retry with the number it returns.')
     types = [t['InstanceType'] for t in ec2.describe_instance_types(Filters=[
         {'Name': 'vcpu-info.default-vcpus', 'Values': [str(vcpu)]}, {'Name': 'memory-info.size-in-mib', 'Values': [str(ram * 1024)]},
         {'Name': 'current-generation', 'Values': ['true']}, {'Name': 'processor-info.supported-architecture', 'Values': ['x86_64']}])['InstanceTypes']]

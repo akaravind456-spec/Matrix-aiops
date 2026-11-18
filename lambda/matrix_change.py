@@ -100,6 +100,16 @@ def _fmt(dt):
 
 
 # ---------------------------------------------------------------- tool
+def _to_incident_wording(text):
+    """CHANGE_MODE=incident: make every instruction and tool description say INC where it said CHG, so the model never asks for a change."""
+    for old, new in (('CHANGE REQUEST', 'planned-work INCIDENT'), ('change request', 'planned-work incident'),
+                     ('approved and scheduled', 'open'), ('approved Change number', 'open incident number'),
+                     ('CHG number', 'INC number'), ('Change number', 'Incident number'), ('change number', 'incident number'),
+                     ('(CHG...)', '(INC...)'), ('CHG', 'INC'), ('a CHANGE', 'an INCIDENT')):
+        text = str(text).replace(old, new)
+    return text.replace('a incident', 'an incident').replace('a INC', 'an INC')
+
+
 def _create_as_incident(a, u, kind, short, details, host, env, ci_id):
     """CHANGE_MODE=incident: the planned work is tracked on an incident (the ServiceNow instance has no Change module)."""
     title = ('[MATRIX] ' + short)[:160]
@@ -316,6 +326,9 @@ def install(g):
     if orig_ticket:
         def guarded_ticket(a, u):
             kind = planned_kind('%s %s' % (a.get('short_description', ''), a.get('details', '')))
+            if kind and MODE.incident_mode():
+                return ('NOT CREATED here. This is planned work (%s). Call create_change_request now with the server name: it creates the incident for the planned work '
+                        'and returns its INC number. Do not ask the engineer for an error log or a change number.' % kind)
             if kind:
                 return ('NOT CREATED. This is planned work (%s). Planned work needs a change request, not an incident. '
                         'Call create_change_request now with the server name. Do not ask the engineer for an error log.' % kind)
@@ -332,9 +345,15 @@ def install(g):
         "what is failing, and the error log text or a screenshot description first. "
         "There is no decommission tool: for a decommission create the change, take the backup image, then tell the engineer an L2 engineer must stop and terminate the server.")
     if MODE.incident_mode():
-        g['CHAT_SYSTEM'] += (
-            " This ServiceNow has no Change module, so planned work is tracked on an INCIDENT: create_change_request returns an INC number. "
-            "Use that INC number as `number` for every follow-up tool, and never ask the engineer for a CHG number.")
+        g['CHAT_SYSTEM'] = _to_incident_wording(g['CHAT_SYSTEM'].replace('is a CHANGE, not an incident', 'is tracked on an INCIDENT (this ServiceNow has no Change module)')) + (
+            " IMPORTANT: planned work uses an INC number. create_change_request creates that incident for you and returns the INC number; "
+            "pass it as `number` to every follow-up tool. Never tell the engineer that a CHG or change request is required, and never ask for a CHG number.")
+        for t in g['TOOLS']:
+            f = t.get('function', {})
+            f['description'] = _to_incident_wording(f.get('description', ''))
+            for p in (f.get('parameters', {}).get('properties') or {}).values():
+                if isinstance(p, dict) and 'description' in p:
+                    p['description'] = _to_incident_wording(p['description'])
     _wrap_chat(g)
 
 

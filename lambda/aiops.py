@@ -122,7 +122,7 @@ def _guard(inst, a, what):
     """Only servers tagged production/prod need an incident or change number. Untagged and dev servers need just the Confirm click."""
     env = _env(inst['id'])
     if env in ('prod', 'production') and not str(a.get('number', '')).strip():
-        raise RuntimeError('%s is a production server. %s needs a change number. Do NOT ask the engineer: call create_change_request for this server now, then retry with the CHG number it returns as `number`.' % (inst['host'], what))
+        raise RuntimeError('%s is a production server. %s needs a change or incident number. Do NOT ask the engineer: call create_change_request for this server now, then retry with the number it returns as `number`.' % (inst['host'], what))
     return env
 
 
