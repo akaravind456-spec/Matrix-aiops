@@ -15,6 +15,17 @@ Start with the **Product Overview**, then read what fits your role.
 | RSK-001 | [Kill Switch and Agent Incident Response](RSK-001-Kill-Switch-and-Agent-Incident-Response.md) | Stop MATRIX quickly and respond to something it did |
 | SUP-001 | [Support and Troubleshooting](SUP-001-Support-and-Troubleshooting.md) | Fix common faults and ask for help well |
 
+## Customer pack (four short documents)
+
+Shorter, customer-shareable summaries of the documents above. Read these first when presenting to a customer or leader.
+
+| ID | Document | Covers |
+|---|---|---|
+| MTX-01 | [Problem, Approach and Scalability](MTX-01-Problem-Approach-and-Scalability.md) | The problem, success measures, approach, adoption stages, scaling and limits |
+| MTX-02 | [Product Features, Architecture and Tech Stack](MTX-02-Product-Features-Architecture-and-Tech-Stack.md) | Features, components, governance, model gateway, technology |
+| MTX-03 | [Deployment, Cost and Support](MTX-03-Deployment-Cost-and-Support.md) | Install options, measured cost, value method, support tiers |
+| MTX-04 | [Cybersecurity and AI Observability](MTX-04-Cybersecurity-and-AI-Observability.md) | Threats, stop ladder, what is recorded, evidence, NIST alignment |
+
 ## Working guides
 
 | File | Use |
