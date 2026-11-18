@@ -1,0 +1,41 @@
+# MATRIX documentation
+
+Start with the **Product Overview**, then read what fits your role.
+
+## Product documents
+
+| ID | Document | Read it to |
+|---|---|---|
+| PRD-001 | [Product Overview](PRD-001-Product-Overview.md) | Understand what MATRIX is, what it does and what it does not do |
+| ARC-001 | [Architecture and Governance](ARC-001-Architecture-and-Governance.md) | See the components, data, controls and who approves what |
+| AIG-001 | [Agent Behavior and Action Lifecycle](AIG-001-Agent-Behavior-and-Action-Lifecycle.md) | Know exactly what the agent may do and how it decides |
+| DEP-001 | [Deployment Model](DEP-001-Deployment-Model.md) | Plan an installation: options, requirements, sizing, responsibilities |
+| COM-001 | [Cost and Chargeback Model](COM-001-Cost-and-Chargeback-Model.md) | Know what MATRIX costs and how to charge teams for it |
+| SEC-001 | [Threat Model](SEC-001-Threat-Model.md) | Review the risks, the controls and the open weaknesses |
+| RSK-001 | [Kill Switch and Agent Incident Response](RSK-001-Kill-Switch-and-Agent-Incident-Response.md) | Stop MATRIX quickly and respond to something it did |
+| SUP-001 | [Support and Troubleshooting](SUP-001-Support-and-Troubleshooting.md) | Fix common faults and ask for help well |
+
+## Working guides
+
+| File | Use |
+|---|---|
+| [deployment-guide.md](deployment-guide.md) | Click-by-click steps to install MATRIX in a new AWS account |
+| [env-template.md](env-template.md) | Every Lambda setting (names only, never values) |
+| [tool-catalog.md](tool-catalog.md) | Every tool the chat can use and its safety rule |
+
+## Reading paths
+
+| You are | Read |
+|---|---|
+| New to the product | PRD-001, then AIG-001 |
+| Installing it | DEP-001, `deployment-guide.md`, `env-template.md` |
+| Approving the design or auditing | ARC-001, AIG-001, SEC-001, RSK-001 |
+| Managing the budget | COM-001 |
+| On call | RSK-001, SUP-001 |
+
+## Status of these documents
+
+All are **version 0.1 draft** from the code and from the behavior seen while building the system. Owners, approvers, response
+targets and rates shown as `[to be named]` or `[to be decided]` need a decision. There is no evaluation report or customer
+legal pack (licence, terms, privacy notice) yet: an evaluation needs real test results, and the legal documents need
+review by your legal team.

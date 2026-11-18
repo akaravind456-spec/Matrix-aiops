@@ -6,7 +6,7 @@ Autonomous SRE agent for AWS and ServiceNow: a Python Lambda (chat agent, L1 aut
 lambda/     Lambda code. Entry point: lambda_function.py (handler: lambda_function.handler)
 infra/      CloudFormation: DynamoDB tables, scoped executor role, SSM playbooks, S3 site
 frontend/   matrix-ui.html (the console). old/ holds an earlier copy
-docs/       deployment-guide.md, tool-catalog.md, env-template.md
+docs/       product documents (PRD, ARC, AIG, DEP, COM, SEC, RSK, SUP) and guides: start at docs/README.md
 tests/      offline unit tests (python -m unittest discover -s tests -v)
 tools/      build-all-template.py builds infra/matrix-all.yaml from the separate templates
 ```

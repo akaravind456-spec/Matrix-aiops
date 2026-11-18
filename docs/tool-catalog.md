@@ -4,6 +4,8 @@ READ = runs straight away. WRITE = the engineer must press Confirm, and the glob
 (`matrix_sre_install.py`) first checks that the `number` is a real, valid ticket in ServiceNow.
 Planned-work tools additionally require a **CHG** that ServiceNow says is *approved* and in *Scheduled/Implement* state
 (`matrix_ops_skills._change`). The agent can never approve its own change.
+With `CHANGE_MODE=incident` (a ServiceNow instance with no Change module) an **open INC** is accepted instead, MATRIX creates
+that incident for planned work, and the engineer's Confirm is the only approval.
 
 The autonomous L1 agent (`autonomy.py`) can only use its fixed fix list (restart_service, clear_old_logs, kill_process).
 Every tool below is available in **chat only**.
