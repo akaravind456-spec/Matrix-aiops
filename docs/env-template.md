@@ -28,6 +28,8 @@ A rejected key (401/403) on one slot parks that slot for 10 minutes and the next
 Built-in defaults: NVIDIA models (`nvidia/*`) are free, and two Groq models have list prices. A model with no price shows "price not set", never $0.00.
 The ServiceNow integration user needs a knowledge role (for example `knowledge_admin`, or a role that can create and publish in that knowledge base) for uploads and learning approvals to reach ServiceNow.
 
+`CHANGE_MODE` (`change` is the default and needs approved CHG numbers; `incident` tracks planned work such as deployment, patching and migration on an INC, for a ServiceNow instance with no Change module. The Confirm button in the console stays the approval).
+
 ## ServiceNow
 `SN_BASE` (https://devXXXXXX.service-now.com, no trailing slash) · `SN_USER` · `SN_PASS` · `SN_AI_USER` · `SN_AI_GROUP` · `SN_L2_GROUP` · `SN_L3_GROUP`
 (`SNOW_URL/USER/PASS` are filled from the SN_ ones automatically.)

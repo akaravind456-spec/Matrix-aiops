@@ -23,6 +23,7 @@ import os
 import re
 
 import aiops as AI
+import matrix_mode as MODE
 
 G = {}
 CHANGE_GROUP = os.environ.get('CHANGE_GROUP', os.environ.get('L1_GROUP', 'MATRIX-AI-L1'))
@@ -99,6 +100,31 @@ def _fmt(dt):
 
 
 # ---------------------------------------------------------------- tool
+def _create_as_incident(a, u, kind, short, details, host, env, ci_id):
+    """CHANGE_MODE=incident: the planned work is tracked on an incident (the ServiceNow instance has no Change module)."""
+    title = ('[MATRIX] ' + short)[:160]
+    dup = G['sn']('GET', 'incident', {'sysparm_query': 'active=true^short_description=' + re.sub(r'[\^=]', ' ', title),
+                                      'sysparm_limit': '1', 'sysparm_fields': 'number,sys_id'}) or []
+    if dup:
+        n = G['raw'](dup[0]['number'])
+        return 'An open %s incident already exists for %s: %s. Use %s as the number for the next steps.' % (kind, host, n, n)
+    impl, backout, test = _plans(kind, host, details)
+    body = {'short_description': title, 'urgency': '2', 'impact': '2', 'category': 'inquiry',
+            'description': ('PLANNED WORK (%s) on %s, environment %s.\n%s\n\nPlan:\n%s\n\nBack-out:\n%s\n\nTest:\n%s\n\nRequested by %s via MATRIX chat. '
+                            'Each action still needs the engineer to press Confirm in the console.'
+                            % (kind, host, env, details or short, impl, backout, test, u.get('name', '')))[:3900]}
+    if ci_id:
+        body['cmdb_ci'] = ci_id
+    gid = G['_group_id'](CHANGE_GROUP) if '_group_id' in G else ''
+    if gid:
+        body['assignment_group'] = gid
+    r = G['sn']('POST', 'incident', body=body)
+    number = G['raw'](r['number'])
+    G['add_note'](G['raw'](r['sys_id']), '[MATRIX] %s tracked on this incident (no Change module). Created from chat by %s.' % (kind, u.get('name', '')))
+    return ('Created incident %s to track the %s (%s) for %s. Use %s as the `number` for the follow-up steps (image, launch, patch, playbook, deploy). '
+            'No approval is needed in ServiceNow; the engineer presses Confirm in the console.' % (number, kind, env, host, number))
+
+
 def create_change_request(a, u):
     ci = str(a.get('ci', '')).strip()
     short = str(a.get('short_description', '')).strip()
@@ -111,13 +137,23 @@ def create_change_request(a, u):
     if len(short) < 5:
         short = '%s of %s' % (kind.capitalize(), ci)
 
-    inst = G['need_instance']({'host': ci})
-    host = inst['host']
-    env = AI._env(inst['id'])
+    try:
+        inst = G['need_instance']({'host': ci})
+        host = inst['host']
+        env = AI._env(inst['id'])
+    except Exception:
+        if kind != 'deployment':
+            raise
+        # a new server does not exist yet, so there is nothing to look up
+        host = re.sub(r'[^A-Za-z0-9._-]', '', ci)[:60]
+        env = str(a.get('environment', 'dev')).strip().lower() or 'dev'
     risk = '2' if env in ('prod', 'production') else '3'
 
     cr = G['sn']('GET', 'cmdb_ci_server', {'sysparm_query': 'name=' + host, 'sysparm_limit': '1', 'sysparm_fields': 'sys_id'}) or []
     ci_id = G['raw'](cr[0]['sys_id']) if cr else ''
+
+    if MODE.incident_mode():
+        return _create_as_incident(a, u, kind, short, details, host, env, ci_id)
 
     # reuse an open change for the same server and kind instead of creating duplicates
     if ci_id:
@@ -212,7 +248,7 @@ def _precreate(q, u, user_text):
         if not host:
             return q
         res = create_change_request({'ci': host, 'kind': kind, 'short_description': '%s of %s' % (kind.capitalize(), host), 'details': user_text[:400]}, u)
-        m = re.search(r'CHG\d+', res)
+        m = re.search(r'(?:CHG|INC)\d+', res)
         if not m:
             print('matrix_change: precreate gave no CHG number: %s' % res[:200])
             return q
@@ -295,6 +331,10 @@ def install(g):
         "Only real faults (service down, errors, alarms, outages, performance problems) are incidents: for those use create_incident_ticket and collect the CI, "
         "what is failing, and the error log text or a screenshot description first. "
         "There is no decommission tool: for a decommission create the change, take the backup image, then tell the engineer an L2 engineer must stop and terminate the server.")
+    if MODE.incident_mode():
+        g['CHAT_SYSTEM'] += (
+            " This ServiceNow has no Change module, so planned work is tracked on an INCIDENT: create_change_request returns an INC number. "
+            "Use that INC number as `number` for every follow-up tool, and never ask the engineer for a CHG number.")
     _wrap_chat(g)
 
 

@@ -12,6 +12,7 @@ Every function returns a plain dict: {"ok": True, ...} or {"ok": False, "error":
 No function raises, so the agent loop never crashes on a ServiceNow problem.
 """
 import os, re, json, base64, urllib.request, urllib.error, urllib.parse
+import matrix_mode as mode
 
 
 class SNError(Exception):
@@ -168,7 +169,22 @@ def create_incident(ci=None, short_description=None, description=None, error_log
 def create_change(ci=None, short_description=None, description=None, change_type="normal",
                   implementation_plan=None, backout_plan=None, test_plan=None,
                   start_date=None, end_date=None, risk="3", justification=None):
-    """Create a change request. Normal/emergency changes need plans and a window."""
+    """Create a change request. Normal/emergency changes need plans and a window.
+    With CHANGE_MODE=incident (no Change module) the planned work is tracked on an incident instead."""
+    if mode.incident_mode():
+        miss = [n for n, v in (("ci", ci), ("short_description", short_description), ("description", description)) if not v]
+        if miss:
+            return {"ok": False, "needs_info": miss, "ask": "Planned work needs: " + ", ".join(miss) + "."}
+        plan = "\n".join(x for x in (
+            "Implementation plan:\n" + _clean(implementation_plan) if implementation_plan else "",
+            "Back-out plan:\n" + _clean(backout_plan) if backout_plan else "",
+            "Test plan:\n" + _clean(test_plan) if test_plan else "",
+            "Window: %s to %s" % (start_date, end_date) if start_date or end_date else "") if x)
+        r = create_incident(ci=ci, short_description="[PLANNED] " + short_description, description=_clean(description) + ("\n\n" + plan if plan else ""),
+                            urgency=3, impact=3, category="inquiry")
+        if r.get("ok"):
+            r["note"] = "Tracked on an incident because there is no Change module. The engineer's Confirm in the console is the approval."
+        return r
     need = [("ci", ci), ("short_description", short_description), ("description", description)]
     if change_type in ("normal", "emergency"):
         need += [("implementation_plan", implementation_plan), ("backout_plan", backout_plan),
@@ -270,8 +286,14 @@ def search_tickets(text=None, ci=None, table="incident", only_open=True, limit=1
 @_safe
 def check_change_approval(number):
     """Is this change approved, in the right state and inside its window? Never guesses: reads ServiceNow."""
+    if mode.incident_mode() and str(number).startswith("INC"):
+        _, r = _by_number(number)
+        active = r.get("state") in ("1", "2", "3")
+        return {"ok": True, "change": {"number": number, "state": r.get("state"), "approved": active, "state_ok": active, "ready_to_execute": active,
+                                       "note": "Tracked on an incident (no Change module). The engineer's Confirm is the approval.",
+                                       **({} if active else {"why_not": "the incident is resolved or closed"})}}
     if not str(number).startswith("CHG"):
-        return {"ok": False, "error": "check_change_approval only works on CHG numbers"}
+        return {"ok": False, "error": "check_change_approval only works on CHG numbers" + (" (or INC numbers when CHANGE_MODE=incident)" if mode.incident_mode() else "")}
     _, r = _by_number(number)
     approved = r.get("approval") == "approved"
     in_state = r.get("state") in ("-1", "-2")
@@ -340,10 +362,15 @@ def update_ticket(number, fields=None, assignment_group=None, assigned_to=None, 
 @_safe
 def close_change(number, close_code, close_notes):
     """Close a change after implementation. close_code: successful, successful_with_issues or unsuccessful."""
-    if not str(number).startswith("CHG"):
-        return {"ok": False, "error": "close_change only works on CHG numbers"}
     if close_code not in ("successful", "successful_with_issues", "unsuccessful"):
         return {"ok": False, "error": "close_code must be successful, successful_with_issues or unsuccessful"}
+    if mode.incident_mode() and str(number).startswith("INC"):
+        _, r = _by_number(number)
+        note = "Planned work closed as %s. %s" % (close_code, _clean(close_notes))
+        _sn("PATCH", "/api/now/table/incident/" + r["sys_id"], {"state": "6", "close_code": os.environ.get("CLOSE_CODE", "Solved (Permanently)"), "close_notes": note})
+        return {"ok": True, "number": number, "state": "Resolved", "close_code": close_code}
+    if not str(number).startswith("CHG"):
+        return {"ok": False, "error": "close_change only works on CHG numbers"}
     _, r = _by_number(number)
     code = {"successful": "successful", "successful_with_issues": "successful_issues", "unsuccessful": "unsuccessful"}[close_code]
     _sn("PATCH", "/api/now/table/change_request/" + r["sys_id"], {"state": "3", "close_code": code, "close_notes": _clean(close_notes)})

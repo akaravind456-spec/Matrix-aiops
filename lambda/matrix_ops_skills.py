@@ -18,6 +18,7 @@ import time
 import boto3
 
 import matrix_guardrails as gr
+import matrix_mode as mode
 
 HOLD_DAYS = int(os.environ.get("DECOM_HOLD_DAYS", "7"))
 DECOM_ROLE = os.environ.get("DECOMMISSION_ROLE_ARN", "").strip()
@@ -55,8 +56,8 @@ def _change(change_number, approved):
     if not approved:
         return _fail("needs_approval: the engineer must press Confirm first"), None
     num = str(change_number or "").strip().upper()
-    if not re.fullmatch(r"CHG\d{7,}", num):
-        return _fail("a change number (CHG...) is required for this action"), None
+    if not re.fullmatch(mode.number_regex(), num):
+        return _fail("an incident number (INC...) is required for this action" if mode.incident_mode() else "a change number (CHG...) is required for this action"), None
     os.environ["CURRENT_TICKET"] = num
     ok, why, rec = gr.validate_ticket(num)
     if not ok:

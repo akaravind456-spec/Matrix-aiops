@@ -79,7 +79,7 @@ def _wait(e, txt):
 def post(cands, body, timeout=60):
     now = time.time()
     live = [c for c in cands if COOL.get(c['id'], 0) <= now] or sorted(cands, key=lambda c: COOL.get(c['id'], 0))[:1]
-    errs, auth_failed = [], False
+    errs, auth_failed, not_found = [], False, False
     for c in live:
         for attempt in (0, 1):
             try:
@@ -101,11 +101,16 @@ def post(cands, body, timeout=60):
                 if e.code in (401, 403):
                     # a bad or expired key on ONE slot must not stop the others: park it for 10 minutes and say which slot it was
                     COOL[c['id']] = time.time() + 600; errs.append('%s rejected its API key (HTTP %s)' % (c['label'], e.code)); auth_failed = True; break
+                if e.code == 404:
+                    # wrong URL path or a model name this endpoint does not have: park that slot and try the next one
+                    COOL[c['id']] = time.time() + 600; errs.append('%s not found (HTTP 404): check its URL and model name' % c['label']); not_found = True; break
                 raise RuntimeError('LLM %s: %s' % (e.code, txt))
             except Exception as e:
                 COOL[c['id']] = time.time() + 20; errs.append('%s %s' % (c['label'], str(e)[:60])); break
     if auth_failed:
         raise RuntimeError('No model could answer (%s). Fix the key for the slot named above (Lambda environment variables).' % '; '.join(errs))
+    if not_found:
+        raise RuntimeError('No model could answer (%s). Fix the URL or model name for the slot named above (Lambda environment variables).' % '; '.join(errs))
     raise RuntimeError('All models are busy or down (%s). Try again in a minute.' % '; '.join(errs))
 
 
