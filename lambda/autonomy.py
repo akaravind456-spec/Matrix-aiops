@@ -226,11 +226,13 @@ def _apply_and_validate(ctx, tool, args, seen, user):
     AI.ev('tool', tool, {'args': args, 'result': str(out)[:1500], 'by': user['u']}, t0)
     G['add_note'](ctx['sid'], '[MATRIX AI] Applied: %s -> %s' % (_summary(tool, args), str(out)[:600]))
     post = {'restart_service': 'service_status', 'clear_old_logs': 'disk_usage', 'kill_process': 'top_cpu_processes'}[tool]
-    time.sleep(5)
+    time.sleep(15)   # let the load settle before measuring again
     after = [_read('health_check', {}, ctx), _read(post, {'service': args.get('service', '')}, ctx)]
     vt = [G['_fn']('verdict', 'Report whether the problem is fixed, judging only from the post-fix diagnostics.',
                    {'resolved': 'yes or no', 'evidence': 'One or two sentences citing the post-fix output'})]
-    msgs = [{'role': 'system', 'content': 'You validate an SRE fix. Alarm: %s on %s. Judge only from the outputs given; if they do not clearly show recovery answer no.' % (ctx['alarm'], ctx['host'])},
+    msgs = [{'role': 'system', 'content': 'You validate an SRE fix. Alarm: %s on %s. Judge only from the outputs given; if they do not clearly show recovery answer no. '
+             'IMPORTANT: a CloudWatch alarm only changes state a few minutes after the problem is gone, so an alarm that still says ALARM right after the fix is NOT evidence that the fix failed; ignore the alarm state. '
+             'Decide from the live measurements: if the process that caused the problem is gone and CPU, load, memory, disk or the service are back to normal, answer yes.' % (ctx['alarm'], ctx['host'])},
             {'role': 'user', 'content': 'Diagnostics before the fix:\n%s\n\nFix applied: %s\nResult: %s\n\nDiagnostics after the fix:\n%s' % (
                 '\n---\n'.join(seen)[-2500:], _summary(tool, args), str(out)[:500], '\n---\n'.join(after)[-2500:])}]
     m = _llm(msgs, vt, force='verdict')
