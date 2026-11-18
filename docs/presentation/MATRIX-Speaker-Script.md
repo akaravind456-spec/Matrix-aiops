@@ -33,16 +33,16 @@
 
 Good morning, everyone. We are Shafeeq and Aravind.
 
-Let me start with a question. **How many people does it take to answer an alarm at 3 in the morning, every night of the year?**
+Let me start with a simple question. **If you could hire one more L1 engineer, who never sleeps, never takes a day off, and
+writes down everything they do, would you hire them?**
 
-`[click]` About **five**. A week has 168 hours. One engineer works about 40. So a support desk that never closes needs five people.
+`[click]` Most teams would say yes straight away. Problems do not wait for office hours, so to cover every hour of the week
+you need about **five** people. And most of their day goes on the same first steps, again and again. Check the server. Look at
+the problem. Find the instructions. Write the notes.
 
-And what do those five people do all day? The same first steps, again and again. Check the server. Look at the problem. Find
-the instructions. Write the notes.
-
-That is where **MATRIX** helps. MATRIX is an **AI engineer for the first line of support**. It works with your team, every hour
-of the day. When an alarm goes off, it opens the ticket, looks at the problem, fixes it if the fix is safe, and passes it to a
-person if it is not.
+That is the engineer we built. **MATRIX** is an **AI engineer for the first line of support**. It works with your team, every
+hour of the day. When an alarm goes off, it opens the ticket, looks at the problem, fixes it if the fix is safe, and passes it
+to a person if it is not.
 
 We are not here to cut your team. We want to give them their time back.
 
