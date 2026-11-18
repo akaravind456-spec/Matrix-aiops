@@ -86,7 +86,9 @@ def on_event(event):
     d = event.get('detail') or {}
     if (d.get('state') or {}).get('value') != 'ALARM':
         return {'ok': True, 'result': 'not an ALARM transition'}
-    return {'ok': True, **raise_incident(d.get('alarmName', 'unknown-alarm'), (d.get('state') or {}).get('reason', ''), _instance_of_event(d))}
+    res = {'ok': True, **raise_incident(d.get('alarmName', 'unknown-alarm'), (d.get('state') or {}).get('reason', ''), _instance_of_event(d))}
+    print('MATRIX-ALARM-INTAKE', res)   # visible in the CloudWatch log of this function
+    return res
 
 
 def sweep():
@@ -97,6 +99,7 @@ def sweep():
                 return {'ok': True, 'results': out, 'note': 'stopped at ALARM_MAX_PER_RUN; the next sweep continues'}
             iid = next((d['Value'] for d in a.get('Dimensions', []) if d['Name'] == 'InstanceId'), '')
             r = raise_incident(a['AlarmName'], a.get('StateReason', ''), iid)
+            print('MATRIX-ALARM-SWEEP', r)
             made += r.get('result') == 'created'
             out.append(r)
     return {'ok': True, 'results': out}
