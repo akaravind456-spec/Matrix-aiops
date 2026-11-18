@@ -22,6 +22,12 @@ into a private note, not into this repo.
 All chosen models must support tool calling. A slot needs both a key and a model to count.
 A rejected key (401/403) on one slot parks that slot for 10 minutes and the next slot is tried.
 
+## Console features
+`KB_NAME` (ServiceNow knowledge base that SOPs and runbooks uploaded in the console go to; it must already exist; default `AI SRE Runbooks`) ·
+`LLM_PRICES` (optional JSON, US dollars per 1M tokens, for the Dashboard's LLM cost, for example `{"openai/gpt-oss-120b":{"in":0.15,"out":0.60}}`; a key ending in `*` matches a prefix).
+Built-in defaults: NVIDIA models (`nvidia/*`) are free, and two Groq models have list prices. A model with no price shows "price not set", never $0.00.
+The ServiceNow integration user needs a knowledge role (for example `knowledge_admin`, or a role that can create and publish in that knowledge base) for uploads and learning approvals to reach ServiceNow.
+
 ## ServiceNow
 `SN_BASE` (https://devXXXXXX.service-now.com, no trailing slash) · `SN_USER` · `SN_PASS` · `SN_AI_USER` · `SN_AI_GROUP` · `SN_L2_GROUP` · `SN_L3_GROUP`
 (`SNOW_URL/USER/PASS` are filled from the SN_ ones automatically.)

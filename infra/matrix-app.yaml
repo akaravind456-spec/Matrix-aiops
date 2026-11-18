@@ -21,7 +21,7 @@ Metadata:
       - Label: { default: AWS operations }
         Parameters: [Environment, ExecutorRoleArn, DecommissionRoleArn, InstanceProfile, SubnetId, SecurityGroupId, AuditLogGroup, OpsBucket, TraceTable, OperatorRoleArn, MaxVcpu, AllowedTypes, Services, IngestUrl, TfProject, TfModules, Playbooks]
       - Label: { default: Agent behaviour }
-        Parameters: [AutoAfter, Families, RagMin, RagRequired, LearnScan, EvalHost]
+        Parameters: [KbName, LlmPrices, AutoAfter, Families, RagMin, RagRequired, LearnScan, EvalHost]
 
 Parameters:
   FunctionName:
@@ -195,6 +195,14 @@ Parameters:
     Type: String
     Default: ''
 
+  KbName:
+    Type: String
+    Default: AI SRE Runbooks
+    Description: ServiceNow knowledge base that SOPs and runbooks uploaded in the console go to. It must already exist.
+  LlmPrices:
+    Type: String
+    Default: ''
+    Description: 'Optional JSON of LLM prices in USD per 1M tokens, for example {"openai/gpt-oss-120b":{"in":0.15,"out":0.60}}. Built-in defaults cover NVIDIA free endpoints and two Groq models.'
   AutoAfter:
     Type: Number
     Default: 3
@@ -279,6 +287,8 @@ Resources:
           TF_PROJECT: !Ref TfProject
           TF_MODULES: !Ref TfModules
           PLAYBOOKS: !Ref Playbooks
+          KB_NAME: !Ref KbName
+          LLM_PRICES: !Ref LlmPrices
           AUTO_AFTER: !Ref AutoAfter
           FAMILIES: !Ref Families
           RAG_MIN: !Ref RagMin

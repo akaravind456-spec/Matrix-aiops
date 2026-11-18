@@ -6,6 +6,7 @@ import matrix_sre_install
 import matrix_cost_action
 import matrix_closeout
 import matrix_ops_install
+import matrix_console_extras
 
 
 g = vars(base)
@@ -19,6 +20,7 @@ g['ACTIONS']['gateway'] = gateway.a_gateway   # shows every standby slot, includ
 matrix_sre_install.install(g)
 matrix_cost_action.install(g)
 matrix_ops_install.install(g)   # patching, migration, deployment, decommission and extra ServiceNow tools
+matrix_console_extras.install(g)  # LLM cost from a price table, ServiceNow KB and AWS document lists, one upload box
 matrix_closeout.install(g)
 learning.install(g)     # last: it wraps the agent run and the dashboard
 matrix_change.install(g)

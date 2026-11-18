@@ -436,12 +436,18 @@ def _publish(job, d, reviewer):
     r = RAG.a_kb_upload({'name': kb_name, 'type': 'runbook', 'content': _render(job, d, n, reviewer['name'], ssm_name)}, reviewer)
     if not r.get('ok'):
         raise RuntimeError('Knowledge base upload failed: ' + str(r.get('error')))
+    snow_kb, snow_error = '', ''
+    try:  # also publish the article to the ServiceNow knowledge base, so people find it there. A failure here never blocks the approval.
+        import matrix_console_extras as EX
+        snow_kb = EX.snow_article(d.get('title') or kb_name, _render(job, d, n, reviewer['name'], ssm_name))
+    except Exception as e:
+        snow_error = str(e)[:200]
     idx = RAG._index()  # older versions stay in storage but leave the search index, so the agent only finds the newest
     idx['chunks'] = [c for c in idx['chunks'] if not (re.fullmatch(r'learned-%s-v\d+\.md' % re.escape(slug), c['doc']) and c['doc'] != kb_name)]
     RAG._put('kb/index.json', json.dumps(idx))
     _tbl().put_item(Item={'pk': 'LEARNED', 'sk': slug, 'kb_doc': kb_name, 'version': n, 'ssm_name': ssm_name, 'ssm_version': ssm_ver, 'status': 'active' if ssm_name else 'kb_only',
                           'runs': 0, 'successes': 0, 'fails_in_row': 0, 'source': number, 'approved_by': reviewer['name'], 'approved_at': _now()})
-    return {'kb_doc': kb_name, 'ssm_name': ssm_name, 'ssm_version': ssm_ver, 'version': n}
+    return {'kb_doc': kb_name, 'ssm_name': ssm_name, 'ssm_version': ssm_ver, 'version': n, 'snow_kb': snow_kb, 'snow_error': snow_error}
 
 
 # ---------------- console actions ----------------
@@ -511,7 +517,8 @@ def a_learn_decide(q, u):
     _move(number, 'publishing', 'approved', published=json.dumps(pub), error='')
     AI.t_end('ok')
     G['add_note'](G['sys_id_of'](number), '[MATRIX Learning] Knowledge article %s%s published after approval by %s.' % (pub['kb_doc'], (' and AWS document %s v%s' % (pub['ssm_name'], pub['ssm_version'])) if pub['ssm_name'] else '', u['name']))
-    return {'ok': True, 'text': 'Published %s%s.' % (pub['kb_doc'], (' and created AWS document %s (version %s)' % (pub['ssm_name'], pub['ssm_version'])) if pub['ssm_name'] else ' (knowledge article only, no playbook)'), 'published': pub}
+    where = (' ServiceNow article %s.' % pub['snow_kb']) if pub.get('snow_kb') else (' ServiceNow article not created: %s' % pub['snow_error'] if pub.get('snow_error') else '')
+    return {'ok': True, 'text': 'Published %s%s.%s' % (pub['kb_doc'], (' and created AWS document %s (version %s)' % (pub['ssm_name'], pub['ssm_version'])) if pub['ssm_name'] else ' (knowledge article only, no playbook)', where), 'published': pub}
 
 
 def a_learn_scan(q, u):

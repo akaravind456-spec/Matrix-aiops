@@ -33,11 +33,13 @@ def install(g):
 
         today = datetime.date.today()
         start, end = today - datetime.timedelta(days=days - 1), today + datetime.timedelta(days=1)  # End is exclusive
+        # one query grouped by service AND charge type, so we can show the real usage cost (before credits and refunds)
+        # and what is left to pay after them
         args = dict(TimePeriod={"Start": start.isoformat(), "End": end.isoformat()}, Granularity="DAILY",
-                    Metrics=["UnblendedCost"], GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}])
+                    Metrics=["UnblendedCost"], GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}, {"Type": "DIMENSION", "Key": "RECORD_TYPE"}])
         if tag_key and tag_val:
             args["Filter"] = {"Tags": {"Key": tag_key, "Values": [tag_val]}}
-        daily, svc, token = {}, {}, None
+        daily, svc, token, net = {}, {}, None, 0.0
         try:
             while True:
                 r = ce.get_cost_and_usage(**args, **({"NextPageToken": token} if token else {}))
@@ -45,6 +47,9 @@ def install(g):
                     d = day["TimePeriod"]["Start"]
                     for grp in day["Groups"]:
                         v = float(grp["Metrics"]["UnblendedCost"]["Amount"])
+                        net += v
+                        if grp["Keys"][1] in ("Credit", "Refund"):
+                            continue
                         daily[d] = daily.get(d, 0) + v
                         svc[grp["Keys"][0]] = svc.get(grp["Keys"][0], 0) + v
                 token = r.get("NextPageToken")
@@ -64,12 +69,15 @@ def install(g):
         while d <= today:
             series.append({"d": d.isoformat(), "v": round(daily.get(d.isoformat(), 0), 4)})
             d += datetime.timedelta(days=1)
-        top = sorted(((k, v) for k, v in svc.items() if v >= 0.005), key=lambda x: -x[1])
-        services = [{"name": k, "v": round(v, 4)} for k, v in top[:8]]
-        rest = sum(v for _, v in top[8:])
-        if rest >= 0.005:
+        top = sorted(((k, v) for k, v in svc.items() if abs(v) >= 0.0001), key=lambda x: -x[1])
+        services = [{"name": k, "v": round(v, 4)} for k, v in top[:12]]
+        rest = sum(v for _, v in top[12:])
+        if abs(rest) >= 0.0001:
             services.append({"name": "Other services", "v": round(rest, 4)})
-        out = {"ok": True, "currency": "USD", "days": days, "total": round(sum(daily.values()), 4), "daily": series, "services": services}
+        gross = sum(daily.values())
+        # total = usage cost before credits and refunds. net_total = what is left to pay after them.
+        out = {"ok": True, "currency": "USD", "days": days, "total": round(gross, 4), "net_total": round(net, 4), "credits": round(net - gross, 4),
+               "daily": series, "services": services, "service_count": len(svc)}
         CACHE[key] = (time.time(), out)
         return out
 

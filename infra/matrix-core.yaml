@@ -156,18 +156,27 @@ Resources:
                   - ssm:DescribeInstanceInformation
                   - ssm:DescribeInstancePatches
                   - ssm:DescribeInstancePatchStates
-                Resource: '*'
-              # --- learned playbooks are created as SSM documents named MATRIX-LEARNED-* ---
-              - Sid: LearnedPlaybooks
-                Effect: Allow
-                Action:
-                  - ssm:CreateDocument
-                  - ssm:UpdateDocument
-                  - ssm:UpdateDocumentDefaultVersion
+                  - ssm:ListDocuments
                   - ssm:DescribeDocument
                   - ssm:GetDocument
+                Resource: '*'
+              # --- playbooks become SSM documents: MATRIX-LEARNED-* (learning) and MATRIX-PB-* (uploaded in the console) ---
+              - Sid: UpdatePlaybookDocuments
+                Effect: Allow
+                Action:
+                  - ssm:UpdateDocument
+                  - ssm:UpdateDocumentDefaultVersion
                   - ssm:AddTagsToResource
-                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/MATRIX-LEARNED-*
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/MATRIX-LEARNED-*
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/MATRIX-PB-*
+              - Sid: CreatePlaybookDocuments
+                Effect: Allow
+                Action: [ssm:CreateDocument, ssm:AddTagsToResource]
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/CreatedBy: [MATRIX-Learning, MATRIX-Console]
               # --- EC2: read, power actions on tagged servers, and the older migration tools ---
               - Sid: Ec2Read
                 Effect: Allow
