@@ -4,7 +4,7 @@
 |---|---|
 | Document ID | MTX-03 |
 | Owner | MATRIX product owner |
-| Version / status | 0.1 / Draft: measured costs and a value method; **no prices proposed**, support terms not yet approved |
+| Version / status | 0.1 / Draft: measured costs and a value method; licence prices are **proposals** in LIC-001, support terms not yet approved |
 | Classification | Customer-shareable once approved |
 | Effective date | 18 November 2026 |
 | Applies to | MATRIX AIOps (this repository, `main`) |
@@ -13,7 +13,7 @@
 
 **Status.** Amounts are US dollars, exclude tax and are before credits unless stated. Anything in `[brackets]` is a
 commitment that has not been decided. Figures marked "to be measured" have not been measured on a customer-sized system.
-There is **no licence price** in this version, on purpose (see Part B).
+Licence plans and proposed prices are in **LIC-001** and summarised in section B1.
 
 # Part A: Deployment strategy
 
@@ -116,10 +116,18 @@ recovers missed alarms when it is back. There is no multi-region failover.
 
 # Part B: Cost model
 
-## B1. How the cost is made up
+## B1. What the customer pays
 
-MATRIX is not sold at a licence price in this version. Its running cost in your account has two shared parts and one direct
-part.
+**Licence (proposed, see LIC-001).** An annual licence by plan, plus support as a percentage. The price follows managed
+servers and approver seats. There is no per-ticket or per-token charge, and limits are soft.
+
+| Per year, proposed | Starter | Team | Commander |
+|---|---|---|---|
+| Managed servers / approver seats | 25 / 2 | 100 / 10 | Unlimited / 50 |
+| Licence | $3,600 | $18,000 | $60,000 |
+| Standard support (18%) | $648 | $3,240 | $10,800 |
+
+**Running cost in the customer's own account.** Separate from the licence. It has two shared parts and one direct part.
 
 | # | Component | What drives it | Where to read it |
 |---|---|---|---|
@@ -193,7 +201,8 @@ it makes the estimate cautious.
 - Create an AWS Budget for the MATRIX services, with alerts at 80% and 100%.
 - Set `LLM_PRICES` for every paid model. A model with no price shows "price not set" and is never counted as $0.
 - Decide the allocation driver and the cost-centre tag, and keep them for a year.
-- If MATRIX is offered as a service, set a price only after three months of measured data and a finance review. COM-001 section 7 gives the method. All rates are `[to be decided]`.
+- The licence prices in LIC-001 are drafts. Re-check them after the first pilot has measured the real saving, and get finance and legal review before any offer.
+- Internal team-to-team charging (not the licence) is covered in COM-001.
 
 # Part C: Support model
 

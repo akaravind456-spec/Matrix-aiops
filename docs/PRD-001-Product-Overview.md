@@ -117,6 +117,8 @@ flowchart LR
 - A knowledge base named in `KB_NAME` must exist in ServiceNow before uploads and learning approvals can publish.
 - Sign-in accounts are defined in the `USERS` setting; there is no single sign-on in this release (see SEC-001).
 - The agent's fixes are Linux-only today.
+- Licensing: plans are priced on managed servers and approver seats (proposed in LIC-001). The Dashboard Licence card
+  measures usage against the plan set in `LICENSE_PLAN`; nothing is blocked.
 
 ## 10. Where to go next
 

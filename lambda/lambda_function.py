@@ -8,6 +8,7 @@ import matrix_closeout
 import matrix_ops_install
 import matrix_console_extras
 import matrix_alarm_intake
+import matrix_license
 
 
 g = vars(base)
@@ -23,6 +24,7 @@ matrix_cost_action.install(g)
 matrix_ops_install.install(g)   # patching, migration, deployment, decommission and extra ServiceNow tools
 matrix_console_extras.install(g)  # LLM cost from a price table, ServiceNow KB and AWS document lists, one upload box
 matrix_alarm_intake.install(g)  # alarm -> incident -> agent, all inside this one function
+matrix_license.install(g)         # usage meter for the Licence card; never blocks anything
 matrix_closeout.install(g)
 learning.install(g)     # last: it wraps the agent run and the dashboard
 matrix_change.install(g)

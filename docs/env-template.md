@@ -30,6 +30,9 @@ The ServiceNow integration user needs a knowledge role (for example `knowledge_a
 
 `CHANGE_MODE` (`change` is the default and needs approved CHG numbers; `incident` tracks planned work such as deployment, patching and migration on an INC, for a ServiceNow instance with no Change module. The Confirm button in the console stays the approval).
 
+## Licence meter (optional)
+`LICENSE_PLAN` (`starter`, `team`, `commander` or `custom`; unset shows "Evaluation"), `LICENSE_NAME` (customer label), and for custom deals `LICENSE_SERVERS` and `LICENSE_SEATS` (a number, or `unlimited`). They only drive the Dashboard Licence card. Nothing is blocked. See LIC-001.
+
 ## ServiceNow
 `SN_BASE` (https://devXXXXXX.service-now.com, no trailing slash) · `SN_USER` · `SN_PASS` · `SN_AI_USER` · `SN_AI_GROUP` · `SN_L2_GROUP` · `SN_L3_GROUP`
 (`SNOW_URL/USER/PASS` are filled from the SN_ ones automatically.)

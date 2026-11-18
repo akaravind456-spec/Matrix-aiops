@@ -154,7 +154,9 @@ the platform owner before relying on it.
 
 ## 7. If MATRIX is offered as a service: how to set a price
 
-Only do this after at least three months of measured data. **No rates are proposed in this version.**
+For the **external licence** (a customer buying MATRIX), see LIC-001, which proposes plans priced on managed servers and
+approver seats. This section is about **internal** rates between teams. Do it only after at least three months of measured
+data. **No internal rates are proposed in this version.**
 
 1. **Find the cost to serve** one unit (a managed server, an approver seat or an automatic ticket) using section 5.
 2. **Choose the charging unit.** Usage that follows value is easiest to explain: per managed server a month, or per handled

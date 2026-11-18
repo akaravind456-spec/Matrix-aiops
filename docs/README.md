@@ -14,6 +14,7 @@ Start with the **Product Overview**, then read what fits your role.
 | SEC-001 | [Threat Model](SEC-001-Threat-Model.md) | Review the risks, the controls and the open weaknesses |
 | RSK-001 | [Kill Switch and Agent Incident Response](RSK-001-Kill-Switch-and-Agent-Incident-Response.md) | Stop MATRIX quickly and respond to something it did |
 | SUP-001 | [Support and Troubleshooting](SUP-001-Support-and-Troubleshooting.md) | Fix common faults and ask for help well |
+| LIC-001 | [Licensing and Pricing](LIC-001-Licensing-and-Pricing.md) | See the proposed plans, prices, soft limits and the usage meter |
 
 ## Customer pack (four short documents)
 
