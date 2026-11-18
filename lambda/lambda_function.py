@@ -7,6 +7,7 @@ import matrix_cost_action
 import matrix_closeout
 import matrix_ops_install
 import matrix_console_extras
+import matrix_alarm_intake
 
 
 g = vars(base)
@@ -21,6 +22,7 @@ matrix_sre_install.install(g)
 matrix_cost_action.install(g)
 matrix_ops_install.install(g)   # patching, migration, deployment, decommission and extra ServiceNow tools
 matrix_console_extras.install(g)  # LLM cost from a price table, ServiceNow KB and AWS document lists, one upload box
+matrix_alarm_intake.install(g)  # alarm -> incident -> agent, all inside this one function
 matrix_closeout.install(g)
 learning.install(g)     # last: it wraps the agent run and the dashboard
 matrix_change.install(g)
@@ -32,4 +34,8 @@ def handler(event, context):
     # EventBridge schedule: {"matrix_task": "learn_scan"} starts the automatic learning scan
     if isinstance(event, dict) and event.get('matrix_task') == 'learn_scan':
         return learning.scan_event()
+    if matrix_alarm_intake.is_alarm_event(event):          # CloudWatch alarm -> incident -> agent
+        return matrix_alarm_intake.on_event(event)
+    if isinstance(event, dict) and event.get('matrix_task') == 'alarm_sweep':
+        return matrix_alarm_intake.sweep()
     return _console(event, context)

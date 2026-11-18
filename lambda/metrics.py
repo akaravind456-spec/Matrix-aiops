@@ -4,9 +4,9 @@ Actions added: dash (agent outcomes and human intervention), obs (latency, token
 Everything comes from data the platform already stores (DynamoDB traces + inbox events, ServiceNow incidents). Nothing is invented:
 if a source is not connected the response says so.
 """
-import json, re, time
+import json, os, re, time
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from boto3.dynamodb.conditions import Key
 import aiops as AI
@@ -94,6 +94,13 @@ def a_dash(q, u):
     if not AI.ddb:
         return {'ok': False, 'error': 'TRACE_TABLE is not configured'}
     since = (time.time() - _days(q) * 86400) * 1000
+    # STATS_SINCE (for example 2026-11-18) hides older records from the rates without deleting anything
+    s0 = os.environ.get('STATS_SINCE', '').strip()
+    if s0:
+        try:
+            since = max(since, datetime.strptime(s0[:10], '%Y-%m-%d').replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            pass
     inbox = [i for i in _q('INBOX', 500) if _ts(i) >= since]
     traces = [t for t in _q('TRACES', 400) if _ts(t) >= since]
     kinds = Counter(i['kind'] for i in inbox)
