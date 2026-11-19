@@ -1,34 +1,38 @@
 # MATRIX: Pitch Script (5 minutes talk, 10 minutes demo and Q&A)
 
-**Deck:** `MATRIX-Product-Deck.pptx` (9 slides). **Team:** Group C, Shafeeq and Aravind.
-**Plan:** slides 1 to 5 are the 5-minute pitch (about 650 spoken words). Slides 6 to 9 are shown during the 10-minute demo and Q&A.
-**Tone:** a sales pitch to leaders. Lead with impact, use leader words (impact, risk, governance, productivity, scale, audit),
-keep the technical part short and direct. No stories.
+**Deck:** `MATRIX-Product-Deck.pptx` (9 slides, same order as below). **Team:** Group C, Shafeeq and Aravind.
+**Plan:** slides 1 to 5 are the 5-minute pitch (about 700 spoken words). Slides 6 to 9 are on screen during the 10-minute demo and Q&A.
+**Tone:** a sales pitch to leaders. Open with the problem and the "hire an engineer" idea, lead with impact, keep the technical
+part short and direct. No stories. Leader words: impact, risk, governance, productivity, scale, audit, pilot.
 
 | Slide | Speaker | Time | Message |
 |---|---|---|---|
-| 1 Our product | Shafeeq | 0:40 | Impact first, who we are |
-| 2 What and why | Shafeeq | 1:00 | The problem, an SRE agent, why MATRIX |
+| 1 Our product | Shafeeq | 0:50 | The hire: an SRE engineer who works 24/7. That engineer is the MATRIX SRE Agent |
+| 2 What and why | Shafeeq | 1:00 | Problem statement, deterministic, automated, governed, why MATRIX |
 | 3 Architecture and stack | Aravind | 1:30 | How it is built, security, observability |
-| 4 Deployment, cost, support | Aravind then Shafeeq | 1:10 | How it lands, what it costs, who supports |
-| 5 Future updates | Shafeeq | 0:40 | Where it goes, including multi-cloud |
+| 4 Deployment, cost, support | Aravind then Shafeeq | 1:10 | How it lands, how it is priced, who supports it |
+| 5 Future updates | Shafeeq | 0:40 | Where it goes, including multi-cloud, and the ask |
 | 6 to 9 Demo | Aravind drives | 10:00 | Live demo and Q&A |
 
 ---
 
 ## Pitch (5 minutes)
 
-### Slide 1: Our product (Shafeeq, 0:40)
+### Slide 1: Our product (Shafeeq, 0:50)
 Good morning. We are Group C: Aravind and Shafeeq.
 
-Let me start with the impact. **MATRIX gives your operations team faster fixes, fewer escalations to senior engineers, and a
-complete record of everything an AI agent does.**
+Let me start with a simple idea. **Imagine you could hire one SRE engineer who works 24 hours a day, 7 days a week. Who never
+takes a day off. Who picks up your repeated L1 issues the moment they appear, resolves them quicker, writes down everything they
+do, and never makes a risky change without your approval.**
 
-MATRIX is an **SRE agent**. It is built natively on AWS and works inside the ServiceNow you already use. It learns, analyses,
-decides, executes and verifies, with a person in control of anything risky. `[click]`
+Every operations leader wants that engineer. **That engineer is our MATRIX SRE Agent.** `[click]`
+
+MATRIX is built natively on AWS and works inside the ServiceNow you already use. It learns, analyses, decides, executes and
+verifies, with a person in control of anything risky. The impact: **faster fixes, fewer escalations to senior engineers, and a
+complete record of everything the agent does.**
 
 ### Slide 2: What and why (Shafeeq, 1:00)
-First, the problem. Most first-line incidents repeat. The first response is slow, the fix depends on who is on shift, the notes
+Here is the problem. Most first-line incidents repeat. The first response is slow, the fix depends on who is on shift, the notes
 are written late, and risky changes are approved over chat with no record. `[click on the middle column]`
 
 MATRIX answers that as an **SRE agent that is deterministic, automated and governed**.
@@ -36,9 +40,9 @@ MATRIX answers that as an **SRE agent that is deterministic, automated and gover
 - **Automated:** from alarm to a verified fix, with no waiting for a free engineer.
 - **Governed:** a person approves anything risky.
 
-Why MATRIX? It is **AWS-native**, so there is nothing new to host. It **learns** from every closed ticket. It runs on
-**several AI models** and switches automatically if one fails. Every step is **audited**. And the design is **cloud-ready**: AWS
-today, other clouds next. Now Aravind will show how it is built. `[click]`
+Why MATRIX? It is **AWS-native**, so there is nothing new to host. It **learns** from every closed ticket. It runs on **several AI
+models** and switches automatically if one fails. Every step is **audited**. And the design is **cloud-ready**: AWS today, other
+clouds next. Now Aravind will show how it is built. `[click]`
 
 ### Slide 3: Architecture and stack (Aravind, 1:30)
 Thank you, Shafeeq. This is the MATRIX architecture. I will take it from the top. `[point to each layer]`
@@ -56,7 +60,7 @@ controls cost.
 and the next incident benefits.
 
 **Five: security and guardrails.** Four checks: ticket, tag, command and human approval. On top of that, AWS itself enforces
-least privilege with IAM. These limits live in the platform, not in the AI's instructions.
+least privilege with IAM, and access is role-based. These limits live in the platform, not in the AI's instructions.
 
 The stack is on the right: Lambda, EventBridge, DynamoDB, S3, Systems Manager, CloudWatch and ServiceNow. For **observability**,
 every model call and every action is recorded: which model answered, what it cost, who approved, and what changed. `[click]`
@@ -76,15 +80,15 @@ Where next? **Next:** single sign-on with MFA, secrets in AWS Secrets Manager, a
 **multi-cloud**, Windows servers, more ticketing tools, and a view across accounts. **Vision:** a self-healing enterprise, where
 repeat causes go back to engineering and incidents fall, not just get fixed faster.
 
-Our ask is simple: **agree a pilot, agree the measures, and give us a few test servers.** Now let us show you. Aravind will drive.
+So back to where we started. You wanted an SRE engineer who never sleeps. **Agree a pilot, agree the measures, and give us a few
+test servers, and you can have one.** Now let us show you. Aravind will drive.
 
 ---
 
 ## Demo (10 minutes including Q&A)
 
-**Test case:** a runaway process on a test Linux server drives CPU high. The alarm is already in ALARM and the incident
-exists before you start. **Do not demo the ticket being raised automatically.** The demo is an **L2 engineer working with the
-agent**.
+**Test case:** a runaway process on a test Linux server drives CPU high. The alarm is already in ALARM and the incident exists
+before you start. **Do not demo the ticket being raised automatically.** The demo is an **L2 engineer working with the agent**.
 
 | Time | Slide | Who | What to do and say |
 |---|---|---|---|
@@ -99,8 +103,11 @@ agent**.
 **Role-based access (one sentence if asked):** each user signs in with a role. Engineers see their own work, leads see the whole
 team's traces, and the agent's own identity can never approve or upload anything.
 
-**Keep one tab flow:** open the chat, the incident, the Knowledge page and the dashboard in the **same order as the slides**,
-in separate browser windows side by side, so you never hunt for tabs.
+**Keep one flow:** open the chat, the incident, the Knowledge page and the dashboard in the **same order as the slides**, in
+separate browser windows side by side, so you never hunt for tabs.
+
+**Close on the opening line.** At the end of the Q&A, say: "You asked for an SRE engineer who works 24/7. Meet the MATRIX SRE
+Agent."
 
 ### If the demo goes wrong
 - Keep a calm, neutral face. Say: **"Let me show you the saved run of the same case,"** and switch to the screenshots on slides 6 to 9.
@@ -114,9 +121,10 @@ in separate browser windows side by side, so you never hunt for tabs.
 
 | Question | Answer |
 |---|---|
-| Does it replace engineers? | No. It removes the repeated first checks. People keep approvals and the hard problems |
+| Does it replace engineers? | No. It takes the repeated first checks. People keep approvals and the hard problems |
+| Does it fix every L1 issue? | It handles the repeated L1 issues it has a safe fix for. Anything else it investigates, explains and hands to a person with the reason |
 | What if the AI is wrong? | It can only pick from a closed list, code checks the choice against real data, and a person approves risk |
-| Is it secure? | Four checks plus AWS IAM. Limits are enforced by the platform. Everything is audited. We are open about what is still to do: SSO, MFA and secrets storage |
+| Is it secure? | Four checks plus AWS IAM, role-based access, and everything audited. We are open about what is still to do: SSO, MFA and secrets storage |
 | Does it support other clouds? | The design is cloud-ready. AWS is what works today. Multi-cloud is on the roadmap |
 | What does it cost? | Licence by servers and seats, no per-ticket charge. Exact figures are confirmed with you in the pilot |
 | How do we stop it? | A stop switch works in minutes. Nothing is lost |
@@ -130,41 +138,42 @@ in separate browser windows side by side, so you never hunt for tabs.
 | Feedback | How it is handled |
 |---|---|
 | Do not commit to cost numbers, no "approximately" | No cost figures anywhere in the deck or script |
-| Do not say "three steps" | Removed. Steps are shown as a flow of five named stages |
+| Do not say "three steps" | Removed. The flow is shown as five named stages |
 | Do not say AWS "isn't allowing" | Reworded: "AWS itself enforces least privilege with IAM" |
 | Do not mention automatic tickets not being logged | Not mentioned |
 | MATRIX name in the architecture diagram | The diagram title and layers carry MATRIX AIOps |
 | Do not say "3 minutes" | Removed |
 | Face reaction when the demo goes wrong | "If the demo goes wrong" section |
 | Agent stopped without saying why | See open item 1 below |
-| RBAC, normal users and admin privileges | One-sentence answer above. See open item 2 |
-| Start with what the agent can do | Slide 1 opens with the impact and the agent's five stages |
+| RBAC, normal users and admin privileges | Slide 3 chip, one-sentence answer above. See open item 2 |
+| Start with what the agent can do | Slide 1 opens with the hire, then the five stages and the impact |
 | Script 5 minutes, direct on technical parts | Pitch is 5 minutes, architecture walk is direct |
-| Mention Group C, no story | Slide 1 intro, no story anywhere |
-| SRE agent, problem statement, deterministic, automated | Slide 2 |
+| Mention Group C, no story | Slide 1 intro. The hire idea is a short framing, not a story |
+| SRE agent, problem statement, deterministic, automated | Slides 1 and 2 |
 | Do not demo the ticket being raised | Demo starts with the alarm and ticket already there |
 | Show the L2 engineer interacting with the agent | Slides 6 and 7 |
-| Tabs break the flow | One tab order, matching the slides |
+| Tabs break the flow | One window order, matching the slides |
 | Explain the architecture diagram | Slide 3, layer by layer |
-| Multi-cloud | Slide 2 and slide 5, as roadmap |
+| Multi-cloud | Slides 2 and 5, as roadmap |
 | Cost model was weak | Slide 4: licence model, usage visible, pilot to confirm |
 | Deployment and support model | Slide 4 |
-| Overall observability | Slide 3 (spoken) and the Observability chip |
+| Overall observability | Slide 3 (spoken) and the observability banner |
 | Words leaders want | Impact, governance, risk, productivity, audit, scale, pilot |
 | Sales voice, not an engineer's | Benefit first in every line |
-| Impact at the start and the end | Slide 1 and slide 9 |
+| Impact at the start and the end | Slide 1 and the closing line |
 | Intro about us, transitions | Slide 1, and a hand-over line on every slide |
 | Governance and security | Slide 3, five layers and four checks |
+| Opening: hire an SRE engineer who works 24/7 | Slide 1, and it returns at the end of slide 5 and the demo |
 
 ## Checklist: the 14 submission requirements
 
 | # | Requirement | Where |
 |---|---|---|
-| 1 | Problem statement and solution approach | Slide 2; `docs/MTX-01` |
+| 1 | Problem statement and solution approach | Slides 1 and 2; `docs/MTX-01` |
 | 2 | Product architecture | Slide 3; `docs/MATRIX-Product-Reference.md` |
 | 3 | Product features | Slides 2, 3; `docs/MTX-02` |
 | 4 | Tech stack | Slide 3 right side |
-| 5 | Test case used to demo | Demo section above |
+| 5 | Test case used to demo | Slide 6 banner and the demo section |
 | 6 | Deployment strategy | Slide 4; `docs/MTX-03`, `DEP-001` |
 | 7 | Cost model | Slide 4; `docs/MTX-03`, `COM-001`, `LIC-001` |
 | 8 | Support and maintenance | Slide 4; `docs/MTX-03`, `SUP-001` |
@@ -180,7 +189,8 @@ in separate browser windows side by side, so you never hunt for tabs.
    step limit reached" or "stopped: model unavailable") to the work notes and the chat. I have not changed this yet.
 2. **Admin versus normal user.** The product today has roles (engineer, lead) and a blocked agent identity. A full admin-privilege
    model is not built. Say only what is true, as in the answer above, or ask me to add it.
-3. **Screenshots.** Slides 6 to 9 have labelled frames. Click the frame, delete it, and insert the screenshot. Do not show a
-   settings page, because it shows secrets.
-4. **Links.** Add the source code and demo video links in the footer of slide 9.
+3. **"Resolves every L1 issue."** The opening idea is a hook. In answers, say "the repeated L1 issues it has a safe fix for",
+   as in the Q&A, so leaders do not take it as a promise for every case.
+4. **Screenshots and links.** Slides 6 to 9 have labelled frames. Replace them, and add the source code and demo video links on slide 9.
+   Do not show a settings page, because it shows secrets.
 5. **Rotate every key and password that was pasted into chat before presenting.**
