@@ -22,8 +22,9 @@ part short and direct. No stories. Leader words: impact, risk, governance, produ
 Good morning. We are Group C: Aravind and Shafeeq.
 
 Let me start with a simple idea. **Imagine you hire an SRE engineer who works 24 hours a day, 7 days a week, without a single
-coffee break. An engineer who can handle ten tickets a minute. Who can support a hundred L2 and L3 engineers and make their work
-much easier. And who helps management keep the project running smoothly, with fewer resources.**
+coffee break. An engineer who picks up many tickets at the same time, the moment they appear. Who stands beside your L2 and L3
+engineers and makes their work much easier. And who helps management keep the project running smoothly, with fewer
+resources.**
 
 Every operations leader wants that engineer. **That engineer is our MATRIX SRE Agent.** `[click]`
 
@@ -121,7 +122,7 @@ break. Meet the MATRIX SRE Agent."
 
 | Question | Answer |
 |---|---|
-| Can it really handle ten tickets a minute, and support a hundred engineers? | That is the standard we are building toward, and it is what the pilot will measure. Today it works through alarms in batches, and the AI models have their own rate limits, so we add standby models and size it with you. We will give you measured numbers from your own pilot, not a promise |
+| How many tickets can it handle at once, and how many engineers can it support? | It works through alarms in batches and runs on several AI models, so we size it with you. We will give you measured numbers from your own pilot, not a promise |
 | Does it replace engineers? | No. It takes the repeated first checks. People keep approvals and the hard problems |
 | Does it fix every L1 issue? | It handles the repeated L1 issues it has a safe fix for. Anything else it investigates, explains and hands to a person with the reason |
 | What if the AI is wrong? | It can only pick from a closed list, code checks the choice against real data, and a person approves risk |
@@ -190,11 +191,10 @@ break. Meet the MATRIX SRE Agent."
    step limit reached" or "stopped: model unavailable") to the work notes and the chat. I have not changed this yet.
 2. **Admin versus normal user.** The product today has roles (engineer, lead) and a blocked agent identity. A full admin-privilege
    model is not built. Say only what is true, as in the answer above, or ask me to add it.
-3. **Opening numbers are a hook, not measured facts.** "Ten tickets a minute" and "a hundred L2 and L3 engineers" have **not**
-   been tested. Today the alarm sweep opens at most 5 incidents per run (setting `ALARM_MAX_PER_RUN`), each run needs several
-   AI calls, and the free model tier allows about 40 requests a minute, so ten tickets a minute is not reached today.
-   Keep the "Imagine" framing, and use the Q&A answer if asked. A leader may ask for proof. If you want to claim it, run a
-   load test first and I can help with that.
+3. **No capacity numbers in the opening, on purpose.** The opening keeps the feel (no coffee break, many tickets at once, supports
+   L2 and L3, fewer resources) without a ticket rate or a headcount, because neither has been measured. Today the alarm sweep
+   opens at most 5 incidents per run (setting `ALARM_MAX_PER_RUN`) and the free model tier allows about 40 requests a minute.
+   If you want to quote a rate, run a load test first and I can help with that.
 4. **Screenshots and links.** Slides 6 to 9 have labelled frames. Replace them, and add the source code and demo video links on slide 9.
    Do not show a settings page, because it shows secrets.
 5. **Rotate every key and password that was pasted into chat before presenting.**
