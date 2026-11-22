@@ -669,7 +669,24 @@ Resources:
               - Sid: NeverAllow
                 Effect: Deny
                 Action:
-                  - iam:*
+                  # IAM changes are denied, but NOT iam:PassRole: launching a server must pass the instance role, and
+                  # DenyPassOtherRoles below already limits PassRole to that one role. (iam:* here made every launch fail.)
+                  - iam:Create*
+                  - iam:Delete*
+                  - iam:Put*
+                  - iam:Attach*
+                  - iam:Detach*
+                  - iam:Update*
+                  - iam:Add*
+                  - iam:Remove*
+                  - iam:Set*
+                  - iam:Tag*
+                  - iam:Untag*
+                  - iam:Upload*
+                  - iam:Enable*
+                  - iam:Deactivate*
+                  - iam:Change*
+                  - iam:Reset*
                   - organizations:*
                   - account:*
                   - ec2:TerminateInstances
