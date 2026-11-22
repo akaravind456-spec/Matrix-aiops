@@ -254,6 +254,12 @@ def _new_server_name(text):
     return ''
 
 
+def _asked_size(text):
+    """An instance type named in the request, such as t2.micro or t3-small, written with a dot."""
+    m = re.search(r'\b([a-z]\d[a-z]?)[-.](nano|micro|small|medium|large|xlarge|2xlarge)\b', str(text).lower())
+    return '%s.%s' % (m.group(1), m.group(2)) if m else ''
+
+
 # In incident mode there is no Change module in ServiceNow, so these tools can only fail and waste the model's steps.
 NO_CHANGE_MODULE_TOOLS = {'snow_create_change'}
 # deploy_server builds with Terraform in CodeBuild; without TF_PROJECT it can only fail, so the direct deployment tools are used instead.
@@ -292,6 +298,9 @@ def _precreate(q, u, user_text):
             print('matrix_change: precreate gave no CHG number: %s' % res[:200])
             return q
         note = ('Change %s already exists for %s (%s). Use %s as number for every tool. Do not ask for a change number or error log.' % (m.group(0), host, kind, m.group(0)))
+        size = _asked_size(user_text) if kind == 'deployment' else ''
+        if size:
+            note += ' The engineer asked for instance type %s: pass instance_type=%s to deployment_plan and deployment_apply.' % (size, size)
         print('matrix_change: precreated or reused %s for %s' % (m.group(0), host))
         return dict(q, ctx=(note + ' ' + str(q.get('ctx', ''))).strip())
     except Exception as e:

@@ -362,11 +362,25 @@ def migration_rollback(source_id=None, target_id=None, change_number=None, appro
 
 
 # ----------------------------------------------------------------- deployment
+DEFAULT_INSTANCE_TYPE = os.environ.get("DEFAULT_INSTANCE_TYPE", "t3.micro").strip() or "t3.micro"
+
+
+def size_args(instance_type, vcpu, ram_gb):
+    """A new server always gets a size: the one asked for, or the small default. 't2-micro' is read as 't2.micro'."""
+    it = str(instance_type or "").strip().lower().replace("-", ".")
+    if re.fullmatch(r"[a-z]\d[a-z]?\.[a-z0-9]+", it):
+        return it, None, None
+    if vcpu and ram_gb:
+        return None, vcpu, ram_gb
+    return DEFAULT_INSTANCE_TYPE, None, None
+
+
 @_safe
 def deployment_plan(name=None, instance_type=None, vcpu=None, ram_gb=None, disk_gb=8, ticket=None):
     """Read-only preview of a new server. Creates nothing."""
     if not name:
         return _fail("name is required")
+    instance_type, vcpu, ram_gb = size_args(instance_type, vcpu, ram_gb)
     sess = _sess()
     itype = instance_type
     if not itype:
@@ -397,6 +411,7 @@ def deployment_apply(name=None, instance_type=None, vcpu=None, ram_gb=None, disk
     err, rec = _change(change_number, approved)
     if err:
         return err
+    instance_type, vcpu, ram_gb = size_args(instance_type, vcpu, ram_gb)
     req = {"ticket": change_number, "name": name, "disk_gb": disk_gb, "requested_by": requested_by}
     if instance_type:
         req["instance_type"] = instance_type

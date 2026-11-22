@@ -798,6 +798,8 @@ def a_chat_confirm(q, u):
         out = str(WRITE[d['t']][1](d['a'], u)); ok = not out.startswith('Failed:')
         span('tool', d['t'], t0, 'ok' if ok else 'error', kind='write', args=safe_args(d['a']), out_len=len(out), confirmed=1, err=None if ok else classify(out))
         outcome('confirmed' if ok else 'failed')
+        if not ok:   # the reason, so a failed confirmation can be found in CloudWatch without guessing
+            print(json.dumps({'mx': 'tool_fail', 'tool': d['t'], 'by': u.get('u'), 'error': out[:500]}))
         return {'ok': True, 'text': out[:3000]} if ok else {'ok': False, 'error': out[7:].strip()[:300]}
     except Exception as e:
         span('tool', d['t'], t0, 'timeout' if 'timed out' in str(e).lower() else 'error', kind='write', args=safe_args(d['a']), confirmed=1, err=classify(e))

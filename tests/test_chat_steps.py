@@ -67,3 +67,26 @@ class UsableTools(unittest.TestCase):
 
     def test_change_mode_keeps_snow_create_change(self):
         self.assertIn('snow_create_change', self.names(False, True))
+
+
+class DeploySize(unittest.TestCase):
+    """test-02 failed with int(None): the model sent no instance size at all."""
+
+    def setUp(self):
+        import matrix_change
+        import matrix_ops_skills as ops
+        self.mc, self.ops = matrix_change, ops
+
+    def test_asked_size_is_read_from_the_request(self):
+        self.assertEqual(self.mc._asked_size('deploy a linux server with t2-micro name: test-02'), 't2.micro')
+        self.assertEqual(self.mc._asked_size('use a t3.small please'), 't3.small')
+        self.assertEqual(self.mc._asked_size('deploy a server with 2 vCPU'), '')
+
+    def test_no_size_gets_the_default_instead_of_crashing(self):
+        self.assertEqual(self.ops.size_args(None, None, None), (self.ops.DEFAULT_INSTANCE_TYPE, None, None))
+
+    def test_named_type_is_used_and_dash_becomes_dot(self):
+        self.assertEqual(self.ops.size_args('t2-micro', None, None), ('t2.micro', None, None))
+
+    def test_vcpu_and_ram_are_kept_when_no_type_is_named(self):
+        self.assertEqual(self.ops.size_args(None, 2, 8), (None, 2, 8))

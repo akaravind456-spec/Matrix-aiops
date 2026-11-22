@@ -67,7 +67,10 @@ OPS_WRITE = {
     "deployment_apply": ("Create a new server (SSM only, tagged matrix-managed). Needs an approved change and Confirm.",
                          {"name": _S, "instance_type": _S, "vcpu": {"type": "integer"}, "ram_gb": {"type": "number"},
                           "disk_gb": {"type": "integer"}, "number": _NUM}, ["name", "number"],
-                         lambda a: "DEPLOY new server %s (%s)" % (a.get("name"), a.get("instance_type") or "%s vCPU / %s GB" % (a.get("vcpu"), a.get("ram_gb")))),
+                         lambda a: "DEPLOY new server %s (%s, %s GB disk)" % (
+                             a.get("name"),
+                             ops.size_args(a.get("instance_type"), a.get("vcpu"), a.get("ram_gb"))[0] or "%s vCPU / %s GB RAM" % (a.get("vcpu"), a.get("ram_gb")),
+                             a.get("disk_gb") or 8)),
     "decommission_snapshot": ("Create the final backup image of a server before retiring it. Needs an approved change and Confirm.",
                               {"host": _HOST, "number": _NUM}, ["host", "number"],
                               lambda a: "Final backup image of %s" % a.get("host")),
