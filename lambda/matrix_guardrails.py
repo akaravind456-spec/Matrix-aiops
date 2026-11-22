@@ -270,14 +270,37 @@ def deploy_ec2(req):
     tags = [{"Key": "Name", "Value": req["name"]}, {"Key": "environment", "Value": ENV},
             {"Key": "matrix-managed", "Value": "true"}, {"Key": "change", "Value": ticket},
             {"Key": "requested-by", "Value": req.get("requested_by", "unknown")}]
-    r = sess.client("ec2").run_instances(
-        ImageId=ami, InstanceType=itype, MinCount=1, MaxCount=1,
-        SubnetId=os.environ["SUBNET_ID"], SecurityGroupIds=[os.environ["SECURITY_GROUP_ID"]],
-        IamInstanceProfile={"Name": os.environ["INSTANCE_PROFILE"]},
-        MetadataOptions={"HttpTokens": "required"},
-        BlockDeviceMappings=[{"DeviceName": "/dev/xvda", "Ebs": {"VolumeSize": disk, "VolumeType": "gp3", "Encrypted": True}}],
-        TagSpecifications=[{"ResourceType": t, "Tags": tags} for t in ("instance", "volume")])
+    note = ""
+    for attempt in (1, 2):
+        try:
+            r = sess.client("ec2").run_instances(
+                ImageId=ami, InstanceType=itype, MinCount=1, MaxCount=1,
+                SubnetId=os.environ["SUBNET_ID"], SecurityGroupIds=[os.environ["SECURITY_GROUP_ID"]],
+                IamInstanceProfile={"Name": os.environ["INSTANCE_PROFILE"]},
+                MetadataOptions={"HttpTokens": "required"},
+                BlockDeviceMappings=[{"DeviceName": "/dev/xvda", "Ebs": {"VolumeSize": disk, "VolumeType": "gp3", "Encrypted": True}}],
+                TagSpecifications=[{"ResourceType": t, "Tags": tags} for t in ("instance", "volume")])
+            break
+        except Exception as e:
+            # An account on the AWS Free Plan only allows some instance types. Use the smallest allowed one, and say so.
+            if attempt == 2 or "Free Tier" not in str(e):
+                raise
+            alt = free_tier_type(sess)
+            if not alt or alt == itype:
+                raise
+            note = f" {itype} is not allowed on this account's AWS Free Plan, so {alt} was used instead."
+            itype = alt
     iid = r["Instances"][0]["InstanceId"]
-    worknote(rec, f"Deployed {req['name']} ({iid}), {itype}, {disk} GB, env={ENV}, no SSH (SSM only).")
+    worknote(rec, f"Deployed {req['name']} ({iid}), {itype}, {disk} GB, env={ENV}, no SSH (SSM only).{note}")
     _audit({"ticket": ticket, "who": req.get("requested_by"), "action": "deploy_ec2", "instance": iid, "type": itype})
-    return {"status": "created", "instance_id": iid, "message": f"{req['name']} ({iid}) is launching."}
+    return {"status": "created", "instance_id": iid, "message": f"{req['name']} ({iid}) is launching as {itype}.{note}"}
+
+
+def free_tier_type(sess):
+    """The smallest x86 instance type the account's Free Plan allows (most memory last), or ''."""
+    ec2 = sess.client("ec2"); found = []
+    for page in ec2.get_paginator("describe_instance_types").paginate(Filters=[
+            {"Name": "free-tier-eligible", "Values": ["true"]},
+            {"Name": "processor-info.supported-architecture", "Values": ["x86_64"]}]):
+        found += [(t["MemoryInfo"]["SizeInMiB"], t["InstanceType"]) for t in page["InstanceTypes"]]
+    return sorted(found)[0][1] if found else ""

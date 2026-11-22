@@ -90,3 +90,26 @@ class DeploySize(unittest.TestCase):
 
     def test_vcpu_and_ram_are_kept_when_no_type_is_named(self):
         self.assertEqual(self.ops.size_args(None, 2, 8), (None, 2, 8))
+
+
+class FreeTierFallback(unittest.TestCase):
+    """RunInstances refused t2.micro on a Free Plan account; the deploy now retries with the smallest allowed type."""
+
+    def test_free_tier_type_picks_the_smallest_x86(self):
+        import matrix_guardrails as gr
+
+        class Pager:
+            def paginate(self, **kw):
+                assert {"Name": "free-tier-eligible", "Values": ["true"]} in kw["Filters"]
+                return [{"InstanceTypes": [{"InstanceType": "t3.small", "MemoryInfo": {"SizeInMiB": 2048}},
+                                           {"InstanceType": "t3.micro", "MemoryInfo": {"SizeInMiB": 1024}}]}]
+
+        class Ec2:
+            def get_paginator(self, name):
+                return Pager()
+
+        class Sess:
+            def client(self, n):
+                return Ec2()
+
+        self.assertEqual(gr.free_tier_type(Sess()), "t3.micro")
