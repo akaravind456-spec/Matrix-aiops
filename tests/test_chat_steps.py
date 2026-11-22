@@ -113,3 +113,17 @@ class FreeTierFallback(unittest.TestCase):
                 return Ec2()
 
         self.assertEqual(gr.free_tier_type(Sess()), "t3.micro")
+
+
+class IncidentModeCloseTool(unittest.TestCase):
+    def test_change_close_tool_is_hidden_without_a_change_module(self):
+        import matrix_change as mc
+        tools = [{'function': {'name': n}} for n in ('snow_close_change', 'resolve_incident')]
+        names = [t['function']['name'] for t in mc._usable(tools, True, True)]
+        self.assertEqual(names, ['resolve_incident'])
+
+
+class ConsoleHistory(unittest.TestCase):
+    def test_confirm_results_are_sent_back_to_the_model(self):
+        html = open(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'matrix-ui.html'), encoding='utf-8').read()
+        self.assertIn("[Console: \"'+c.summary", html)

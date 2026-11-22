@@ -261,7 +261,7 @@ def _asked_size(text):
 
 
 # In incident mode there is no Change module in ServiceNow, so these tools can only fail and waste the model's steps.
-NO_CHANGE_MODULE_TOOLS = {'snow_create_change'}
+NO_CHANGE_MODULE_TOOLS = {'snow_create_change', 'snow_close_change'}
 # deploy_server builds with Terraform in CodeBuild; without TF_PROJECT it can only fail, so the direct deployment tools are used instead.
 NEEDS_TERRAFORM = {'deploy_server', 'terraform_plan', 'terraform_apply'}
 
@@ -375,6 +375,9 @@ def install(g):
         g['READ']['create_incident_ticket'] = guarded_ticket
 
     g['CHAT_SYSTEM'] += (
+        " Lines that start with [Console: ...] in the conversation are results the console showed the engineer after they pressed Confirm. They are facts. "
+        "Never state an instance ID, IP address, job ID or any other result unless it appears in a tool result or a [Console: ...] line; if you do not have it, say so and offer to look it up with a tool. "
+        "Never say a change is still waiting for Confirm if a [Console: ...] line says it finished, failed or was cancelled. "
         " TICKET TYPE RULE (overrides earlier ticket and number instructions): "
         "Planned work (server migration, new server deployment, decommission, patching, resize, configuration change) is a CHANGE, not an incident. "
         "For planned work call create_change_request yourself, asking the engineer only for the server name if it is missing. "
@@ -386,7 +389,8 @@ def install(g):
     if MODE.incident_mode():
         g['CHAT_SYSTEM'] = _to_incident_wording(g['CHAT_SYSTEM'].replace('is a CHANGE, not an incident', 'is tracked on an INCIDENT (this ServiceNow has no Change module)')) + (
             " IMPORTANT: planned work uses an INC number. create_change_request creates that incident for you and returns the INC number; "
-            "pass it as `number` to every follow-up tool. Never tell the engineer that a CHG or change request is required, and never ask for a CHG number.")
+            "pass it as `number` to every follow-up tool. Never tell the engineer that a CHG or change request is required, and never ask for a CHG number. "
+            "To close finished planned work, call resolve_incident with the INC number and a one-line note (snow_close_change does not work here).")
         for t in g['TOOLS']:
             f = t.get('function', {})
             f['description'] = _to_incident_wording(f.get('description', ''))
