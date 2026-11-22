@@ -83,7 +83,16 @@ def a_approval_decide(q, u):
         if not ok:
             _escalate(ctx, 'Proposed fix was rejected by %s' % u['name'])
             return {'ok': True, 'text': 'Rejected. %s was escalated to %s.' % (ctx['number'], L2_GROUP)}
-        return {'ok': True, 'text': _apply_and_validate(ctx, tool, args, json.loads(item.get('seen', '[]')), u)}
+        try:
+            return {'ok': True, 'text': _apply_and_validate(ctx, tool, args, load_seen(item.get('seen')), u)}
+        except Exception as e:
+            # Never stop silently: say why in the ticket and hand over to L2 with the real reason.
+            why = 'The approved fix could not be completed: %s' % str(e)[:200]
+            try:
+                _escalate(ctx, why)
+            except Exception:
+                pass
+            return {'ok': True, 'text': '%s I passed %s to %s so a person can finish it.' % (why, ctx['number'], L2_GROUP)}
     finally:
         AI.t_end('ok')
 
@@ -215,6 +224,28 @@ def _vet(d, ctx, seen):
     raise RuntimeError('action %s is not in the fix catalogue' % act)
 
 
+def pack_seen(seen, limit=6000):
+    """Store the diagnostics as valid JSON that fits the limit (shorten each item, never cut the JSON text itself)."""
+    items = [str(s) for s in seen]
+    per = max(200, limit // max(1, len(items)))
+    while True:
+        out = json.dumps([s[-per:] for s in items])
+        if len(out) <= limit:
+            return out
+        if per <= 200:
+            return json.dumps([s[-200:] for s in items[-3:]])
+        per = max(200, int(per * 0.8))
+
+
+def load_seen(raw):
+    """Read stored diagnostics; an unreadable value gives an empty list so an approved fix still runs."""
+    try:
+        v = json.loads(raw or '[]')
+        return [str(x) for x in v] if isinstance(v, list) else []
+    except Exception:
+        return []
+
+
 def _summary(tool, a):
     return G['WRITE'][tool][0](a)
 
@@ -271,7 +302,7 @@ def _run(ctx):
         return _apply_and_validate(ctx, tool, args, seen, AGENT_U)
     aid = '%013d#%s' % (int(time.time() * 1000), uuid.uuid4().hex[:6])
     AI._put({'pk': 'APPROVALS', 'sk': aid, 'status': 'pending', 'number': ctx['number'], 'host': ctx['host'], 'tool': tool, 'args': json.dumps(args),
-             'summary': _summary(tool, args), 'reason': reason, 'evidence': '\n---\n'.join(seen)[-1500:], 'ctx': json.dumps(ctx), 'seen': json.dumps(seen)[-6000:],
+             'summary': _summary(tool, args), 'reason': reason, 'evidence': '\n---\n'.join(seen)[-1500:], 'ctx': json.dumps(ctx), 'seen': pack_seen(seen),
              'created': int(time.time() * 1000), 'ttl': int(time.time()) + TTL})
     inbox_add('approval', ctx['number'], 'Approval needed on %s: %s. %s' % (ctx['number'], _summary(tool, args), reason))
     return 'Waiting for approval in the chat console: %s' % _summary(tool, args)
