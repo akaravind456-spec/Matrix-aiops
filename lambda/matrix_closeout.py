@@ -21,7 +21,7 @@ def install(g):
             if re.search(r'Job id:', r.get('text') or '') or tool in ('migrate_create_image', 'migrate_launch', 'terraform_apply', 'patch_install', 'run_playbook', 'data_sync'):
                 sid = g['sys_id_of'](num)
                 first = (r.get('text') or '').strip().splitlines()[0][:140]
-                g['sn']('PATCH', 'incident/' + sid, body={'work_notes': '[MATRIX AI] Started\n- Action: %s on %s\n- Confirmed by: %s\n- Result: %s\n- Status: In progress, ticket stays open' % (tool, a.get('host', '-'), u['name'], first)})
+                g['sn']('PATCH', 'incident/' + sid, body={'work_notes': '[MATRIX AI] %s confirmed this work and I started it: %s on %s.\nResult so far: %s\nThis ticket stays open until the job is finished.' % (u['name'], tool.replace('_', ' '), a.get('host', '-'), first)})
                 r['text'] = (r.get('text') or '') + '\n\nWork note added to %s. Ticket stays open until the job finishes.' % num
                 return r
             sid = g['sys_id_of'](num)
@@ -29,7 +29,7 @@ def install(g):
             g['sn']('PATCH', 'incident/' + sid, body={
                 'state': '6', 'close_code': g['CLOSE_CODE'],
                 'close_notes': 'MATRIX AI auto-resolved: %s completed on %s, confirmed by %s.' % (tool, a.get('host', '-'), u['name']),
-                'work_notes': '[MATRIX AI] Done\n- Action: %s on %s\n- Confirmed by: %s\n- Result: %s\n- Status: Resolved' % (tool, a.get('host', '-'), u['name'], first)})
+                'work_notes': '[MATRIX AI] Done. %s confirmed this work and it was completed: %s on %s.\nResult: %s\nI have resolved this ticket.' % (u['name'], tool.replace('_', ' '), a.get('host', '-'), first)})
             r['text'] = (r.get('text') or '') + '\n\n%s resolved and work note added.' % num
         except Exception as e:
             r['text'] = (r.get('text') or '') + '\n(Could not update ServiceNow: %s)' % str(e)[:100]

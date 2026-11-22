@@ -561,7 +561,7 @@ def _propose(ctx, m):
     p, h = m['ptr'], m['hit']
     args = {'host': ctx['host'], 'number': ctx['number'], 'ssm_name': p['ssm_name'], 'slug': m['slug']}
     summary = 'Run learned playbook %s on %s (learned from %s, approved by %s)' % (p['ssm_name'], ctx['host'], p.get('source', ''), p.get('approved_by', ''))
-    G['add_note'](ctx['sid'], '[MATRIX AI] Learned runbook %s matched (confidence %d%%). Waiting for chat approval to run %s.' % (h['doc'], h['coverage'] * 100, p['ssm_name']))
+    G['add_note'](ctx['sid'], '[MATRIX AI] I found a runbook we learned from an earlier ticket: "%s" (it matches about %d%%). I need a person to approve running "%s" in the MATRIX chat.' % (h['doc'], h['coverage'] * 100, p['ssm_name']))
     aid = '%013d#%s' % (_now(), os.urandom(3).hex())
     AI._put({'pk': 'APPROVALS', 'sk': aid, 'status': 'pending', 'number': ctx['number'], 'host': ctx['host'], 'tool': 'run_learned', 'args': json.dumps(args), 'summary': summary,
              'reason': 'A runbook that MATRIX learned from an earlier L2 fix matches this alarm.', 'evidence': h['text'][:1500], 'ctx': json.dumps(ctx), 'seen': '[]',
@@ -599,7 +599,7 @@ def _learned_apply(ctx, args, seen, user):
             break
     AI.T['tools'] = AI.T.get('tools', 0) + 1
     AI.ev('tool', 'run_learned', {'args': args, 'result': '%s %s' % (status, out[-1200:]), 'by': user['u']}, t0)
-    G['add_note'](ctx['sid'], '[MATRIX AI] Applied learned playbook %s -> %s\n%s' % (args['ssm_name'], status, out[-800:]))
+    G['add_note'](ctx['sid'], '[MATRIX AI] I ran the learned playbook "%s". It finished with status: %s.\nOutput: %s' % (args['ssm_name'], status, re.sub(r'\s+', ' ', out[-800:]).strip()))
     if status != 'Success':
         _record(args['slug'], False)
         return AU._escalate(ctx, 'Learned playbook %s ended with status %s' % (args['ssm_name'], status))

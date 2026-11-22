@@ -77,7 +77,7 @@ def a_approval_decide(q, u):
     except Exception:
         return {'ok': False, 'error': 'This approval was already decided'}
     ctx, tool, args = json.loads(item['ctx']), item['tool'], json.loads(item['args'])
-    G['add_note'](ctx['sid'], '[MATRIX AI] Fix %s by %s: %s' % ('APPROVED' if ok else 'REJECTED', u['name'], item['summary']))
+    G['add_note'](ctx['sid'], '[MATRIX AI] %s %s the fix: %s.' % (u['name'], 'approved' if ok else 'rejected', item['summary']))
     AI.t_start('approval', u['u'], '%s %s' % (q.get('decision'), item['summary']))
     try:
         if not ok:
@@ -105,7 +105,7 @@ def _group_id(name):
 
 def _escalate(ctx, reason):
     reason = re.sub(r'\s+', ' ', str(reason))[:400]
-    body = {'work_notes': '[MATRIX AI] Escalated to L2 (MATRIX AI). Reason: %s' % reason, 'state': '2'}
+    body = {'work_notes': '[MATRIX AI] Escalated to L2 (MATRIX AI). Reason: %s\nWhat happens next: an L2 engineer needs to take this ticket. The notes above show what I already checked and did.' % reason, 'state': '2'}
     gid = _group_id(L2_GROUP)
     if gid:
         body['assignment_group'] = gid
@@ -156,13 +156,25 @@ def _read(name, args, ctx, seen=None):
         out = 'Error: ' + str(e)[:200]
     AI.T['tools'] = AI.T.get('tools', 0) + 1
     AI.ev('tool', name, {'args': args, 'result': out[:1500]}, t0)
-    G['add_note'](ctx['sid'], '[MATRIX AI] Step: %s -> %s' % (name, re.sub(r'\s+', ' ', out)[:150]))
+    G['add_note'](ctx['sid'], '[MATRIX AI] I checked %s. %s' % (CHECK_NAMES.get(name, name.replace('_', ' ')), _short(out)))
     if seen is not None:
         seen.append(out)
     return out
 
 
 FIXES = ('restart_service', 'clear_old_logs', 'kill_process')
+
+# Plain names for the ticket's work notes, so a person can read them without knowing the tool names.
+CHECK_NAMES = {'health_check': 'the overall health of the server', 'disk_usage': 'the disk space', 'top_cpu_processes': 'the busiest processes',
+               'service_status': 'the status of the service', 'check_alarms': 'the alarms on the server', 'kb_search': 'the runbooks',
+               'cmdb_lookup': 'the server record', 'incident_timeline': 'the earlier notes on this ticket'}
+FIX_NAMES = {'restart_service': 'restart the service', 'clear_old_logs': 'delete old rotated log files', 'kill_process': 'stop the runaway process'}
+
+
+def _short(text, n=220):
+    """One readable line from raw tool output."""
+    t = re.sub(r'\s+', ' ', str(text)).strip()
+    return ('Result: ' + t[:n] + ('...' if len(t) > n else '')) if t else 'Nothing was returned.'
 
 
 def _tools(*names):
@@ -255,7 +267,7 @@ def _apply_and_validate(ctx, tool, args, seen, user):
     out = G['WRITE'][tool][1](args, user)
     AI.T['tools'] = AI.T.get('tools', 0) + 1
     AI.ev('tool', tool, {'args': args, 'result': str(out)[:1500], 'by': user['u']}, t0)
-    G['add_note'](ctx['sid'], '[MATRIX AI] Applied: %s -> %s' % (_summary(tool, args), str(out)[:600]))
+    G['add_note'](ctx['sid'], '[MATRIX AI] I ran the fix: %s.\n%s' % (_summary(tool, args), _short(out, 500)))
     post = {'restart_service': 'service_status', 'clear_old_logs': 'disk_usage', 'kill_process': 'top_cpu_processes'}[tool]
     time.sleep(15)   # let the load settle before measuring again
     after = [_read('health_check', {}, ctx), _read(post, {'service': args.get('service', '')}, ctx)]
@@ -277,7 +289,7 @@ def _apply_and_validate(ctx, tool, args, seen, user):
 
 
 def _run(ctx):
-    G['add_note'](ctx['sid'], '[MATRIX AI] Investigation started on %s' % ctx['host'])
+    G['add_note'](ctx['sid'], '[MATRIX AI] I picked up this ticket and started looking at %s.' % ctx['host'])
     import rag
     hits = rag.retrieve(ctx['alarm'])
     best = hits[0]['coverage'] if hits else 0
@@ -285,7 +297,7 @@ def _run(ctx):
         return _escalate(ctx, 'No runbook in the knowledge base covers this alarm (best match %d%%, needs %d%%)' % (best * 100, rag.RAG_MIN * 100))
     ctx['runbook'] = '\n---\n'.join('[%s] %s' % (h['doc'], h['text'][:900]) for h in hits[:2]) or 'None found (RAG_REQUIRED is off).'
     if hits:
-        G['add_note'](ctx['sid'], '[MATRIX AI] Runbook used: %s (confidence %d%%)' % (hits[0]['doc'], best * 100))
+        G['add_note'](ctx['sid'], '[MATRIX AI] I am following the runbook "%s" (it matches this alarm about %d%%).' % (hits[0]['doc'], best * 100))
     d, seen = _diagnose(ctx)
     if d.get('action') == 'escalate':
         return _escalate(ctx, d.get('reason', 'Outside approved fixes'))
@@ -297,7 +309,9 @@ def _run(ctx):
     inst = G['need_instance']({'host': ctx['host']})
     env = AI._env(inst['id'])
     auto = (tool != 'kill_process' and env in AI.DEV_ENVS) or _known_pattern(ctx['alarm'])
-    G['add_note'](ctx['sid'], '[MATRIX AI] Diagnosis: %s. Chosen fix: %s. %s' % (reason, _summary(tool, args), 'Running automatically (known pattern or low-risk dev fix).' if auto else 'Waiting for chat approval.'))
+    G['add_note'](ctx['sid'], '[MATRIX AI] What I found: %s\nWhat I plan to do: %s.\nNext step: %s' % (
+        reason.rstrip('. '), _summary(tool, args),
+        'I am running it now, because this is a known pattern or a low-risk fix on a dev server.' if auto else 'I need a person to approve this in the MATRIX chat before I run it.'))
     if auto:
         return _apply_and_validate(ctx, tool, args, seen, AGENT_U)
     aid = '%013d#%s' % (int(time.time() * 1000), uuid.uuid4().hex[:6])
