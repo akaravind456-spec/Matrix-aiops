@@ -256,6 +256,18 @@ def _new_server_name(text):
 
 # In incident mode there is no Change module in ServiceNow, so these tools can only fail and waste the model's steps.
 NO_CHANGE_MODULE_TOOLS = {'snow_create_change'}
+# deploy_server builds with Terraform in CodeBuild; without TF_PROJECT it can only fail, so the direct deployment tools are used instead.
+NEEDS_TERRAFORM = {'deploy_server', 'terraform_plan', 'terraform_apply'}
+
+
+def _usable(tools, incident_mode, terraform_ready):
+    """Drop tools that can only fail in this setup, so the model does not spend its steps on them."""
+    drop = set()
+    if incident_mode:
+        drop |= NO_CHANGE_MODULE_TOOLS
+    if not terraform_ready:
+        drop |= NEEDS_TERRAFORM
+    return [x for x in tools if x['function']['name'] not in drop]
 
 
 def _precreate(q, u, user_text):
@@ -298,13 +310,12 @@ def _wrap_chat(g):
         try:
             msgs = _json.loads(q.get('messages') or '[]')
             text = ' '.join(str(m.get('content', ''))[:600] for m in msgs[-4:] if isinstance(m, dict))
-            user_text = ' | '.join(str(m.get('content', ''))[:300] for m in msgs[-4:] if isinstance(m, dict) and m.get('role') == 'user')
+            user_text = ' | '.join(str(m.get('content', ''))[:300] for m in msgs[-10:] if isinstance(m, dict) and m.get('role') == 'user')
         except Exception:
             text, user_text = '', ''
         q = _precreate(q, u, user_text)
         chosen = _select(full, text)
-        if MODE.incident_mode():
-            chosen = [x for x in chosen if x['function']['name'] not in NO_CHANGE_MODULE_TOOLS]
+        chosen = _usable(chosen, MODE.incident_mode(), bool(os.environ.get('TF_PROJECT', '').strip()))
         g['TOOLS'][:] = chosen
         print('matrix_change: chat sends %d of %d tools' % (len(chosen), len(full)))
         try:

@@ -44,3 +44,26 @@ class StepLimitReply(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class UsableTools(unittest.TestCase):
+    def setUp(self):
+        import matrix_change
+        self.mc = matrix_change
+        self.tools = [{'function': {'name': n}} for n in ('deploy_server', 'deployment_apply', 'snow_create_change', 'list_servers')]
+
+    def names(self, incident, tf):
+        return [t['function']['name'] for t in self.mc._usable(self.tools, incident, tf)]
+
+    def test_without_terraform_the_direct_deploy_tool_remains(self):
+        n = self.names(True, False)
+        self.assertNotIn('deploy_server', n)
+        self.assertNotIn('snow_create_change', n)
+        self.assertIn('deployment_apply', n)
+        self.assertIn('list_servers', n)
+
+    def test_with_terraform_deploy_server_is_kept(self):
+        self.assertIn('deploy_server', self.names(False, True))
+
+    def test_change_mode_keeps_snow_create_change(self):
+        self.assertIn('snow_create_change', self.names(False, True))
