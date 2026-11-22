@@ -9,6 +9,7 @@ Set the Lambda timeout to 120 seconds or more.
 import base64, hashlib, hmac, json, os, re, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timezone
 import boto3
+import chat_text
 
 REGION = os.environ.get('AWS_REGION', 'ap-southeast-2')
 SN = os.environ['SN_BASE'].rstrip('/')
@@ -719,6 +720,9 @@ def _run_tool(name, args, u, pending):
     return out
 
 
+CHAT_STEPS = int(os.environ.get('CHAT_STEPS', '10') or 10)   # how many model-and-tool rounds one message may use
+
+
 def a_chat(q, u):
     if not OPENAI_KEY:
         return {'ok': False, 'error': 'OPENAI_API_KEY is not set on the Lambda'}
@@ -753,8 +757,8 @@ def a_chat(q, u):
     if block:
         msgs[-1]['content'] += block
         span('attach', 'files', time.time(), 'ok', n=n, chars=used)
-    pending = []
-    for _ in range(6):
+    pending, tried = [], []
+    for _ in range(CHAT_STEPS):
         msg = _openai(msgs)['choices'][0]['message']
         calls = msg.get('tool_calls') or []
         if not calls:
@@ -766,10 +770,12 @@ def a_chat(q, u):
                 args = json.loads(c['function'].get('arguments') or '{}')
             except Exception:
                 args = {}
-            msgs.append({'role': 'tool', 'tool_call_id': c['id'], 'content': _run_tool(c['function']['name'], args, u, pending)})
+            out = _run_tool(c['function']['name'], args, u, pending)
+            tried.append((c['function']['name'], out))
+            msgs.append({'role': 'tool', 'tool_call_id': c['id'], 'content': out})
     span('guard', 'step_limit', time.time(), 'error')
     if pending: outcome('held')
-    return {'ok': True, 'reply': 'I stopped after too many steps. Tell me which part to continue with.', 'confirm': pending}
+    return {'ok': True, 'reply': chat_text.step_limit_reply(tried, bool(pending)), 'confirm': pending}
 
 
 def a_chat_confirm(q, u):

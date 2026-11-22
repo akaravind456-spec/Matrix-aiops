@@ -243,6 +243,21 @@ def _select(all_tools, text):
 AZ_RX = re.compile(r'[a-z]{2}-[a-z]+-\d[a-z]?')
 
 
+def _new_server_name(text):
+    """The name of a server that does not exist yet, from 'name: test-01' or the first word like test-01."""
+    m = re.search(r'\bname\s*[:=]\s*([A-Za-z0-9][A-Za-z0-9._-]{1,40})', str(text), re.I)
+    if m:
+        return m.group(1)
+    for c in re.findall(r'[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+', str(text)):
+        if not AZ_RX.fullmatch(c.lower()) and not re.fullmatch(r't\d(-[a-z]+)?', c.lower()) and c.lower() not in ('t2-micro', 't3-micro', 't3-small'):
+            return c
+    return ''
+
+
+# In incident mode there is no Change module in ServiceNow, so these tools can only fail and waste the model's steps.
+NO_CHANGE_MODULE_TOOLS = {'snow_create_change'}
+
+
 def _precreate(q, u, user_text):
     """Planned work on a real server: create (or reuse) the change in code, so the model never has to decide to call a tool.
     The CHG number is handed to the model through the chat context, which console_api adds to the system prompt."""
@@ -255,6 +270,8 @@ def _precreate(q, u, user_text):
             if G['find_instance'](c):
                 host = c
                 break
+        if not host and kind == 'deployment':
+            host = _new_server_name(user_text)
         if not host:
             return q
         res = create_change_request({'ci': host, 'kind': kind, 'short_description': '%s of %s' % (kind.capitalize(), host), 'details': user_text[:400]}, u)
@@ -286,6 +303,8 @@ def _wrap_chat(g):
             text, user_text = '', ''
         q = _precreate(q, u, user_text)
         chosen = _select(full, text)
+        if MODE.incident_mode():
+            chosen = [x for x in chosen if x['function']['name'] not in NO_CHANGE_MODULE_TOOLS]
         g['TOOLS'][:] = chosen
         print('matrix_change: chat sends %d of %d tools' % (len(chosen), len(full)))
         try:
