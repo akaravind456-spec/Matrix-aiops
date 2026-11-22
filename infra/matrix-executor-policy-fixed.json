@@ -1,0 +1,198 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Condition": {
+                "StringEquals": {
+                    "ssm:resourceTag/environment": "dev",
+                    "ssm:resourceTag/matrix-managed": "true"
+                }
+            },
+            "Action": "ssm:SendCommand",
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:instance/*",
+            "Effect": "Allow",
+            "Sid": "SendCommandToTaggedInstances"
+        },
+        {
+            "Action": "ssm:SendCommand",
+            "Resource": [
+                "arn:aws:ssm:ap-southeast-2::document/AWS-RunShellScript",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/MATRIX_*",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/NGINX_*",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/KILL_PID",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/CPU_DIAGNOSTICS",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/DISK_*",
+                "arn:aws:ssm:ap-southeast-2:115891591036:document/PROCESS_DETAILS"
+            ],
+            "Effect": "Allow",
+            "Sid": "SendCommandDocuments"
+        },
+        {
+            "Action": [
+                "ssm:GetCommandInvocation",
+                "ssm:ListCommandInvocations",
+                "ssm:ListCommands",
+                "ssm:DescribeInstanceInformation",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeImages",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeVolumes"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "ReadCommandResults"
+        },
+        {
+            "Action": [
+                "cloudwatch:GetMetricData",
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:ListMetrics",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:DescribeAlarmHistory",
+                "logs:DescribeLogGroups",
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+                "cloudtrail:LookupEvents",
+                "ec2:DescribeAddresses",
+                "ec2:DescribeSnapshots",
+                "ec2:DescribeNetworkInterfaces",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:DescribeLoadBalancers"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "ReadObservability"
+        },
+        {
+            "Action": "ec2:CreateSnapshot",
+            "Resource": [
+                "arn:aws:ec2:ap-southeast-2:115891591036:volume/*",
+                "arn:aws:ec2:ap-southeast-2::snapshot/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "SnapshotTaggedVolumes"
+        },
+        {
+            "Action": "ssm:GetParameter",
+            "Resource": "arn:aws:ssm:ap-southeast-2::parameter/aws/service/ami-amazon-linux-latest/*",
+            "Effect": "Allow",
+            "Sid": "ReadLatestAmiParameter"
+        },
+        {
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/environment": "dev",
+                    "aws:ResourceTag/matrix-managed": "true"
+                }
+            },
+            "Action": [
+                "ec2:StartInstances",
+                "ec2:StopInstances",
+                "ec2:RebootInstances"
+            ],
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:instance/*",
+            "Effect": "Allow",
+            "Sid": "PowerActions"
+        },
+        {
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/environment": "dev",
+                    "aws:RequestTag/matrix-managed": "true"
+                },
+                "Null": {
+                    "aws:RequestTag/change": "false"
+                }
+            },
+            "Action": "ec2:RunInstances",
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:instance/*",
+            "Effect": "Allow",
+            "Sid": "RunInstancesOnInstance"
+        },
+        {
+            "Action": "ec2:RunInstances",
+            "Resource": [
+                "arn:aws:ec2:ap-southeast-2:115891591036:volume/*",
+                "arn:aws:ec2:ap-southeast-2:115891591036:network-interface/*",
+                "arn:aws:ec2:ap-southeast-2:115891591036:subnet/*",
+                "arn:aws:ec2:ap-southeast-2:115891591036:security-group/*",
+                "arn:aws:ec2:ap-southeast-2::image/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "RunInstancesSupportingResources"
+        },
+        {
+            "Condition": {
+                "StringEquals": {
+                    "ec2:CreateAction": "RunInstances"
+                }
+            },
+            "Action": "ec2:CreateTags",
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:*/*",
+            "Effect": "Allow",
+            "Sid": "TagOnCreate"
+        },
+        {
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "ec2.amazonaws.com"
+                }
+            },
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::115891591036:role/matrix-instance-role-dev",
+            "Effect": "Allow",
+            "Sid": "PassInstanceRoleOnly"
+        },
+        {
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:ap-southeast-2:115891591036:log-group:/matrix/executor-audit-dev:*:*",
+            "Effect": "Allow",
+            "Sid": "WriteAudit"
+        },
+        {
+            "Action": [
+                "iam:Create*",
+                "iam:Delete*",
+                "iam:Put*",
+                "iam:Attach*",
+                "iam:Detach*",
+                "iam:Update*",
+                "iam:Add*",
+                "iam:Remove*",
+                "iam:Set*",
+                "iam:Tag*",
+                "iam:Untag*",
+                "iam:Upload*",
+                "iam:Enable*",
+                "iam:Deactivate*",
+                "iam:Change*",
+                "iam:Reset*",
+                "organizations:*",
+                "account:*",
+                "ec2:TerminateInstances",
+                "ec2:DeleteVolume",
+                "ec2:DeleteSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:ModifyInstanceAttribute",
+                "kms:ScheduleKeyDeletion",
+                "s3:DeleteBucket",
+                "rds:DeleteDBInstance"
+            ],
+            "Resource": "*",
+            "Effect": "Deny",
+            "Sid": "NeverAllow"
+        },
+        {
+            "Action": "iam:PassRole",
+            "Effect": "Deny",
+            "Sid": "DenyPassOtherRoles",
+            "NotResource": "arn:aws:iam::115891591036:role/matrix-instance-role-dev"
+        }
+    ]
+}
