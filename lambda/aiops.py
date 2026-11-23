@@ -112,7 +112,7 @@ def _inst(host):
 
 def _env(inst_id):
     try:
-        t = ec2.describe_tags(Filters=[{'Name': 'resource-id', 'Values': [inst_id]}, {'Name': 'key', 'Values': ['Environment']}])['Tags']
+        t = ec2.describe_tags(Filters=[{'Name': 'resource-id', 'Values': [inst_id]}, {'Name': 'key', 'Values': ['Environment', 'environment']}])['Tags']
         return t[0]['Value'].lower() if t else 'unknown'
     except Exception:
         return 'unknown'

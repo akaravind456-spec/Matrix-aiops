@@ -210,7 +210,7 @@ LIN = {
     'get_service_status': lambda a: 'systemctl is-active %s; systemctl status %s --no-pager | head -8' % (a, a),
     'restart_service': lambda a: 'sudo systemctl restart %s && systemctl is-active %s' % (a, a),
     'start_service': lambda a: 'sudo systemctl start %s && systemctl is-active %s' % (a, a),
-    'stop_service': lambda a: 'sudo systemctl stop %s; systemctl is-active %s' % (a, a),
+    'stop_service': lambda a: 'sudo systemctl stop %s && (systemctl is-active %s || true)' % (a, a),
     'kill_process': lambda a: (
         "p=%s; n='%s'; c=$(ps -p $p -o comm= 2>/dev/null); "
         "if [ -z \"$c\" ]; then echo \"PID $p is not running\"; exit 0; fi; "

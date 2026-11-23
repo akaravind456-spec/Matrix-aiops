@@ -272,7 +272,7 @@ def _summary(tool, a):
     return G['WRITE'][tool][0](a)
 
 
-def _apply_and_validate(ctx, tool, args, seen, user):
+def _apply_and_validate(ctx, tool, args, seen, user, retried=False):
     t0 = time.time()
     out = G['WRITE'][tool][1](args, user)
     AI.T['tools'] = AI.T.get('tools', 0) + 1
@@ -295,7 +295,30 @@ def _apply_and_validate(ctx, tool, args, seen, user):
         G['a_resolve']({'sys_id': ctx['sid'], 'notes': 'MATRIX AI auto-resolved: %s fix verified. %s' % (tool, evidence)}, AGENT_U)
         inbox_add('resolved', ctx['number'], '%s resolved by MATRIX AI. %s' % (ctx['number'], evidence))
         return '%s fixed and verified. %s' % (ctx['number'], evidence)
+    if not retried:
+        # one more try: look again with what the failed fix taught us, and try a different safe fix before asking a person
+        try:
+            ctx2 = dict(ctx, desc=(ctx.get('desc', '') + ' A first fix (%s) did not recover it. Evidence: %s' % (_summary(tool, args), evidence))[:900])
+            G['add_note'](ctx['sid'], '[MATRIX AI] That fix did not fully recover it. I am looking again before I escalate. %s' % evidence)
+            d2, seen2 = _diagnose(ctx2)
+            if d2.get('action') in ('restart_service', 'clear_old_logs', 'kill_process'):
+                t2, a2 = _vet(d2, ctx, list(seen) + list(seen2))
+                inst = G['need_instance']({'host': ctx['host']})
+                same = (t2 == tool and a2 == args)
+                if not same and ((t2 != 'kill_process' and AI._env(inst['id']) in AI.DEV_ENVS) or _known_pattern(ctx['alarm'])):
+                    G['add_note'](ctx['sid'], '[MATRIX AI] Second try. What I found: %s\nWhat I plan to do: %s.' % (str(d2.get('reason', ''))[:300], _summary(t2, a2)))
+                    return _apply_and_validate(ctx, t2, a2, list(seen) + list(seen2), user, retried=True)
+        except Exception as e:
+            print('autonomy: second try failed: %s' % str(e)[:200])
     return _escalate(ctx, 'Fix applied (%s) but post-check did not confirm recovery. %s' % (tool, evidence))
+
+
+def _dev_host(ctx):
+    """A dev server with no matching runbook: the agent may still use the approved safe fixes (restart allowed service, clear logs) and verify."""
+    try:
+        return AI._env(G['need_instance']({'host': ctx['host']})['id']) in AI.DEV_ENVS
+    except Exception:
+        return False
 
 
 def _run(ctx):
@@ -303,7 +326,7 @@ def _run(ctx):
     import rag
     hits = rag.retrieve(ctx['alarm'])
     best = hits[0]['coverage'] if hits else 0
-    if best < rag.RAG_MIN and rag.RAG_REQUIRED:
+    if best < rag.RAG_MIN and rag.RAG_REQUIRED and not _dev_host(ctx):
         return _escalate(ctx, 'No runbook in the knowledge base covers this alarm (best match %d%%, needs %d%%)' % (best * 100, rag.RAG_MIN * 100))
     ctx['runbook'] = '\n---\n'.join('[%s] %s' % (h['doc'], h['text'][:900]) for h in hits[:2]) or 'None found (RAG_REQUIRED is off).'
     if hits:

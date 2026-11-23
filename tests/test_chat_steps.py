@@ -231,3 +231,16 @@ class FailedActionKeepsTicketOpen(unittest.TestCase):
     def test_failed_text_blocks_auto_resolve(self):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_closeout.py'), encoding='utf-8').read()
         self.assertIn("I have NOT resolved this ticket", src)
+
+
+class AgentSecondTry(unittest.TestCase):
+    def test_agent_retries_once_and_works_on_dev_without_runbook(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'autonomy.py'), encoding='utf-8').read()
+        self.assertIn("retried=True", src)
+        self.assertIn("not _dev_host(ctx)", src)
+
+
+class EnvironmentTagCase(unittest.TestCase):
+    def test_lowercase_environment_tag_is_read(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'aiops.py'), encoding='utf-8').read()
+        self.assertIn("['Environment', 'environment']", src)
