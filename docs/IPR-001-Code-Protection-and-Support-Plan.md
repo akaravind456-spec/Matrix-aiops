@@ -48,7 +48,7 @@ The Python glue is not the hardest thing to copy. What takes time to build and k
 
 Option F protects the second and third items best, and options B, D and E protect the first and fourth.
 
-## 5. Recommendation
+## 5. Recommendation (first draft)
 
 1. **Now (pilots, trusted customers):** option E only. A licence agreement with no-copy, no-reverse-engineering and audit terms, and the existing soft usage meter. Do not spend on technology yet.
 2. **Before the first paid, non-trusted customer:** add B (compile the Lambda to native modules in the release build) and D (a signed licence key checked at start, with the plan limits in LIC-001). Keep the readable source in a private repository only.
@@ -56,6 +56,56 @@ Option F protects the second and third items best, and options B, D and E protec
 4. **Never rely on "encryption" as the answer.** Say plainly in sales material: the code runs in your account; it is protected by licence and contract, and by compiled releases.
 
 Also: remove the live secrets from the repository history and rotate them (they were shared during development), and keep the repository private.
+
+## 5a. Decision: a licence alone is not enough, so split the product
+
+The owners' position is that a licence agreement does not stop reverse engineering, and the usage meter must not be editable by the customer.
+That cannot be achieved while the whole product runs inside the customer's account: whoever owns that account can read, change or replace
+the code and the meter. The only real protection is to **keep the valuable code and the meter in the vendor's account** and leave only a thin
+part in the customer's.
+
+### Target design (recommended)
+
+| Part | Where it runs | What it holds | Why |
+|---|---|---|---|
+| **MATRIX Core (vendor account)** | Vendor AWS account | Agent logic and flows, prompts, fix catalogue and vetting, runbook library, learning, model routing, the usage meter and the licence | The customer never receives this code, so it cannot be copied, read or edited |
+| **MATRIX Connector (customer account)** | Customer AWS account | A very small Lambda or role that runs only the approved read and fix commands the Core sends, plus the console page | Nothing valuable to copy: it is a thin command runner with no prompts, no logic and no meter |
+| **Trust link** | Between them | Signed requests (Ed25519 or HMAC with per-customer keys), short-lived tokens, allow-listed commands, tag-based IAM boundary in the customer account | A forged or edited Connector cannot get the Core to work, and the Core refuses anything not on the fix list |
+
+The customer keeps control where it matters: the Connector runs under the customer's own IAM role and the same tag boundary, every change still needs
+the engineer's Confirm, and the customer can switch the link off at any time (kill switch, RSK-001).
+
+### How each requirement is met
+
+| Requirement | How it is met | Residual weakness |
+|---|---|---|
+| Cannot copy the product | The Core code and prompts are never shipped. The Connector has no value on its own | A customer can copy the Connector, but it does nothing without a valid Core |
+| Cannot reverse engineer | There is nothing to reverse: the logic is in the vendor account. The Connector is compiled (Nuitka) and holds no secrets | A determined attacker can observe the commands the Connector runs, but not how they were chosen |
+| Cannot change the usage meter | The meter is counted **in the Core**, from the signed requests it serves (servers managed, seats, actions). The customer's settings cannot change it. Limits are enforced there | The customer could stop using the product, which is the same as not paying |
+| Cannot share one install between companies | Each customer gets its own keys; the Core checks the key, the customer's account ID and the plan on every call | A customer could give their keys away. Keys can be revoked and use from a second account is detected |
+
+### What this changes
+
+- The product becomes a **vendor-hosted service** (option A in section 3). MTX-03 and DEP-001 must be updated: customer data (tickets, server output, model prompts) passes through the vendor account, so we need clear data handling, regional hosting, a data processing agreement and a customer security review.
+- Run cost moves to the vendor, so the price in LIC-001 must cover hosting and model cost.
+- Support gets easier: the vendor can see logs and ship fixes without asking the customer to redeploy.
+- A fully **self-hosted** customer (air-gapped or "must run in our account") can only be offered with a compiled build, a signed licence key and contract terms. Say plainly that this tier is protected by contract and cost of copying, not by a technical guarantee.
+
+### Build plan
+
+| Stage | Work | Result |
+|---|---|---|
+| 1 | A signed licence token (Ed25519: the private key stays with the vendor, only the public key is in the product), with customer, account ID, plan limits and expiry. The product refuses to act without a valid token. Compile the Lambda into native modules for releases | Stops casual copying and editing of limits. Not hacker-proof |
+| 2 | Vendor-side meter: the Lambda reports signed usage to a vendor endpoint; the endpoint is the source of truth for billing and limits | The customer cannot lower the meter, but could block the report (the token then expires) |
+| 3 | Split Core and Connector as above | The valuable code leaves the customer's account |
+| 4 | Customer onboarding automation: cross-account role, keys, tag boundary, kill switch | A repeatable vendor-hosted install |
+
+The current product (everything in the customer's account, soft meter) stays as the **pilot** version only.
+
+### Decisions needed
+- Confirm the target: vendor-hosted Core with a customer-side Connector (stages 1 to 4), or accept stage 1 only for now.
+- Whether customers will accept their ticket and server data going through the vendor account.
+- Where the vendor account runs and who operates it (staffing and on-call).
 
 ## 6. Support and maintenance plan
 
