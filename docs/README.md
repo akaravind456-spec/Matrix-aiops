@@ -15,6 +15,7 @@ Start with the **Product Overview**, then read what fits your role.
 | RSK-001 | [Kill Switch and Agent Incident Response](RSK-001-Kill-Switch-and-Agent-Incident-Response.md) | Stop MATRIX quickly and respond to something it did |
 | SUP-001 | [Support and Troubleshooting](SUP-001-Support-and-Troubleshooting.md) | Fix common faults and ask for help well |
 | LIC-001 | [Licensing and Pricing](LIC-001-Licensing-and-Pricing.md) | See the proposed plans, prices, soft limits and the usage meter |
+| IPR-001 | [Code Protection, Support and Maintenance Plan](IPR-001-Code-Protection-and-Support-Plan.md) | Decide how to protect the code and how updates and support work |
 | DEMO-001 | [Demo Test Cases, Screenshots and Video Script](DEMO-001-Demo-Test-Cases-Screenshots-and-Video-Script.md) | See the live test results, console screenshots and the demo recording script |
 
 ## Customer pack (four short documents)

@@ -36,7 +36,7 @@ Automated checks: 106 unit tests pass (`tests/`). The live cases below are the e
 ## 3. Screenshots
 
 Taken from the S3-hosted console on 23 November 2026. Files are in `docs/images/`. Section 3.1 has one screenshot for each test case;
-section 3.2 shows the general console screens.
+section 3.2 shows the step-by-step chat flows; section 3.3 shows the general console screens.
 
 ### 3.1 One screenshot per test case
 
@@ -48,7 +48,7 @@ section 3.2 shows the general console screens.
 
 ![T2](images/T2-no-action-needed-INC0010027.png)
 
-**T3. Restart opens its own ticket (INC0010039).** Chat screenshots of the Confirm card and the result are in 3.2 (3.3 and 3.4). The ticket:
+**T3. Restart opens its own ticket (INC0010039).** Chat screenshots of the Confirm card and the result are in 3.3. The ticket:
 
 ![T3](images/T3-restart-auto-ticket-INC0010039.png)
 
@@ -76,7 +76,66 @@ section 3.2 shows the general console screens.
 
 **T10. Account limit.** No screenshot: the AWS `VcpuLimitExceeded` error was seen in the chat during the run, and it could not be reproduced without launching extra servers. The wording is still raw AWS text.
 
-### 3.2 General console screens
+### 3.2 Step-by-step screenshots of the chat flows
+
+These were taken on 23 November 2026 from the hosted console while running a fresh server called `demo-01` through the whole cycle.
+Each step shows what the engineer typed, the Confirm card MATRIX raised, and the result. The incident was opened by MATRIX each time.
+
+#### Flow A. Deploy a new server (INC0010041)
+1. Ask in plain words. MATRIX opens the incident, shows the plan and a Confirm card.
+
+![Deploy step 1](images/steps/deploy-1-request-and-confirm.png)
+
+2. Press Confirm. The server is launched and the result is shown.
+
+![Deploy step 2](images/steps/deploy-2-launched.png)
+
+#### Flow B. Migrate it to another availability zone (INC0010042)
+1. Ask to migrate. MATRIX opens the incident and asks to create the backup image first.
+
+![Migrate step 1](images/steps/migrate-1-request-image-confirm.png)
+
+2. Press Confirm. The image is being created (it takes a few minutes).
+
+![Migrate step 2](images/steps/migrate-2-image-created.png)
+
+3. Ask to launch the clone in the other zone. A Confirm card appears.
+
+![Migrate step 3](images/steps/migrate-3-launch-clone-confirm.png)
+
+4. Press Confirm. The clone is launched; the original is untouched. (If the image is not ready yet, MATRIX refuses with "not available yet" instead of guessing.)
+
+![Migrate step 4](images/steps/migrate-4-clone-launched.png)
+
+5. After the clone passes its health checks, ask to finish. MATRIX validates it and asks to confirm the cutover.
+
+![Migrate step 5](images/steps/migrate-5-cutover-confirm.png)
+
+6. Press Confirm. The old server is stopped and the clone is live. The result is a plain sentence.
+
+![Migrate step 6](images/steps/migrate-6-cutover-done.png)
+
+#### Flow C. Decommission a server (stopped, never terminated)
+1. Ask to decommission. MATRIX checks for Elastic IPs and load balancers, then asks to create the final backup image.
+
+![Decommission step 1](images/steps/decommission-1-request-backup-confirm.png)
+
+2. Press Confirm. The backup image is being created.
+
+![Decommission step 2](images/steps/decommission-2-backup-started.png)
+
+3. When the image is available, ask to stop the server. A Confirm card appears.
+
+![Decommission step 3](images/steps/decommission-3-stop-confirm.png)
+
+4. Press Confirm. The server is stopped and kept stopped for 7 days. Termination stays a separate step that needs a person to add a tag.
+
+![Decommission step 4](images/steps/decommission-4-stopped-hold.png)
+
+#### Flow D. Restart with an automatic ticket
+See section 3.3 (restart with Confirm, then the closed ticket).
+
+### 3.3 General console screens
 
 #### Dashboard
 What MATRIX is doing, what needs a person, performance and cost.
@@ -88,12 +147,12 @@ Plain-language chat with suggested actions.
 
 ![Chat home](images/02-chat-home.png)
 
-#### Restart opens a ticket and asks for Confirm (3.3)
+#### Restart opens a ticket and asks for Confirm
 No incident number was typed. MATRIX opened the incident and queued the action.
 
 ![Restart with Confirm](images/03-chat-restart-ticket-confirm.png)
 
-#### After Confirm: result and closed ticket (3.4)
+#### After Confirm: result and closed ticket
 The result is shown in the chat and the ticket is resolved with a work note.
 
 ![Confirmed and closed](images/06-chat-confirmed-ticket-closed.png)
