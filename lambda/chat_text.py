@@ -27,9 +27,10 @@ def claims_waiting_for_confirm(text):
     return bool(_WAIT_RX.search(str(text or '')))
 
 
-NUDGE = ('SYSTEM CHECK: your reply says an action is waiting for the engineer to press Confirm, but you did not queue one in this turn, '
-         'so there is no Confirm button on screen. If the step is still to be done, call the tool now so the button appears. '
-         'If it is already done, say so using the [Console: ... result] lines. Never say something is waiting unless you just called its tool.')
+NUDGE = ('SYSTEM CHECK: your reply says an action is waiting for the engineer to press Confirm, but nothing was queued in this turn, '
+         'so no Confirm button exists. Answer ONLY the latest message from the engineer. If the latest message asks for a change, call the tool now '
+         'so the button appears. If it asks about something else, answer that and do not mention any earlier action. '
+         'An older Confirm button from an earlier turn may still be on screen; never repeat that action unless the latest message asks for it.')
 
 NO_BUTTON = ('There is no Confirm button open right now, so nothing is waiting. Tell me which step to do next '
              '(for example "launch the clone" or "close the ticket") and I will queue it.')

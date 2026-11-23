@@ -35,6 +35,7 @@ table{width:100%;border-collapse:collapse}th{text-align:left;font-weight:600;col
 pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px;margin:6px 0;max-height:260px;overflow:auto;font-size:12px}
 #chat{max-width:760px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 52px)}#msgs{flex:1;overflow:auto;padding:6px 2px}
 .m{margin:10px 0;display:flex}.m.u{justify-content:flex-end}.m>div{max-width:86%;padding:9px 13px;border-radius:12px;white-space:pre-wrap}.m.u>div{background:var(--ac);color:#fff}.m.a>div{background:var(--card);border:1px solid var(--bd)}
+.md{white-space:normal;overflow-x:auto}.md p{margin:0 0 8px}.md p:last-child{margin:0}.md ul,.md ol{margin:4px 0 8px 20px;padding:0}.md h4{margin:8px 0 4px;font-size:14px}.md table{border-collapse:collapse;margin:6px 0;font-size:13px}.md th,.md td{border:1px solid var(--bd);padding:4px 8px;text-align:left;vertical-align:top}.md th{background:var(--bg)}.md code{background:var(--bg);padding:1px 4px;border-radius:4px;font-size:12px}
 .cf{margin-top:8px;border:1px solid var(--bd);border-radius:8px;padding:8px 10px;background:var(--bg)}
 #comp{display:flex;gap:8px;border:1px solid var(--bd);background:var(--card);border-radius:12px;padding:8px;box-shadow:var(--sh)}#comp textarea{border:0;resize:none;outline:0;flex:1}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}.chips button{border:1px solid var(--bd);background:var(--card);border-radius:16px;padding:5px 12px;cursor:pointer;color:var(--mu)}.chips button:hover{border-color:var(--ac);color:var(--ac)}
@@ -132,7 +133,21 @@ function paintHist(){const e=$('#hist');if(!e)return;const l=sessions.filter(s=>
 /* ---- CHAT ---- */
 const SUG=['Health check matrix-linux-01','Start matrix-linux-01','How big are my S3 buckets?','Scan matrix-linux-01 for missing patches','Show active incidents'];
 function chat(){$('#main').innerHTML=`<div id="chat"><div id="msgs"></div><div id="comp"><textarea id="inp" rows="2" placeholder="Ask MATRIX to check, fix or deploy…"></textarea><button class="btn" onclick="send()">Send</button></div><div class="chips">${SUG.map((s,i)=>`<button onclick="send(SUG[${i}])">${esc(s)}</button>`).join('')}</div></div>`;$('#inp').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};paintMsgs()}
-function bub(m){if(m.r==='u')return`<div class="m u"><div>${esc(m.x)}</div></div>`;const t=String(m.x).match(/INC\d{7}/);return`<div class="m a"><div>${esc(m.x)}${(m.conf||[]).map((c,k)=>`<div class="cf"><b>Confirm</b><div>${esc(c.summary)}</div>${c.done?`<div class="mu s" style="margin-top:4px">${esc(c.done)}</div>`:`<div style="margin-top:6px"><button class="btn sm" onclick="conf('${m.id}',${k},true)">Confirm</button> <button class="btn o sm" onclick="conf('${m.id}',${k},false)">Cancel</button></div>`}</div>`).join('')}${t?`<div class="cf">${chip(t[0])}</div>`:''}</div></div>`}
+function md(src){const inl=t=>t.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[\s(])\*([^*\s][^*]*)\*/g,'$1<i>$2</i>');
+ const L=esc(String(src)).split('\n'),o=[];let i=0,fence=false,code=[];const cells=r=>r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+ while(i<L.length){const l=L[i];
+  if(/^\s*```/.test(l)){if(fence){o.push('<pre>'+code.join('\n')+'</pre>');code=[];fence=false}else fence=true;i++;continue}
+  if(fence){code.push(l);i++;continue}
+  if(/^\s*\|/.test(l)&&i+1<L.length&&/^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(L[i+1])&&/-/.test(L[i+1])){const h=cells(l);i+=2;const rows=[];while(i<L.length&&/^\s*\|/.test(L[i])){rows.push(cells(L[i]));i++}
+   o.push('<table><thead><tr>'+h.map(c=>'<th>'+inl(c)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+inl(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>');continue}
+  let m;
+  if(m=l.match(/^\s*#{1,4}\s+(.*)$/)){o.push('<h4>'+inl(m[1])+'</h4>');i++;continue}
+  if(/^\s*[-*•]\s+/.test(l)){const it=[];while(i<L.length&&/^\s*[-*•]\s+/.test(L[i])){it.push(L[i].replace(/^\s*[-*•]\s+/,''));i++}o.push('<ul>'+it.map(x=>'<li>'+inl(x)+'</li>').join('')+'</ul>');continue}
+  if(/^\s*\d+[.)]\s+/.test(l)){const it=[];while(i<L.length&&/^\s*\d+[.)]\s+/.test(L[i])){it.push(L[i].replace(/^\s*\d+[.)]\s+/,''));i++}o.push('<ol>'+it.map(x=>'<li>'+inl(x)+'</li>').join('')+'</ol>');continue}
+  if(!l.trim()){i++;continue}
+  const para=[];while(i<L.length&&L[i].trim()&&!/^\s*(\||#{1,4}\s|[-*•]\s|\d+[.)]\s|```)/.test(L[i])){para.push(inl(L[i]));i++}o.push('<p>'+para.join('<br>')+'</p>')}
+ if(fence)o.push('<pre>'+code.join('\n')+'</pre>');return '<div class="md">'+o.join('')+'</div>'}
+function bub(m){if(m.r==='u')return`<div class="m u"><div>${esc(m.x)}</div></div>`;const t=String(m.x).match(/INC\d{7}/);return`<div class="m a"><div>${md(m.x)}${(m.conf||[]).map((c,k)=>`<div class="cf"><b>Confirm</b><div>${esc(c.summary)}</div>${c.done?`<div class="mu s" style="margin-top:4px">${esc(c.done)}</div>`:`<div style="margin-top:6px"><button class="btn sm" onclick="conf('${m.id}',${k},true)">Confirm</button> <button class="btn o sm" onclick="conf('${m.id}',${k},false)">Cancel</button></div>`}</div>`).join('')}${t?`<div class="cf">${chip(t[0])}</div>`:''}</div></div>`}
 function paintMsgs(){const e=$('#msgs');if(!e)return;e.innerHTML=msgs.length?msgs.map(bub).join(''):`<div style="text-align:center;margin-top:18vh"><h1>Hi ${esc((USER.name||'').split(' ')[0])}, what can I do for you?</h1><p class="sub">Servers, AWS, tickets and runbooks. Anything that changes something asks you to confirm.</p></div>`;e.scrollTop=1e9}
 async function send(q){if(busy)return;const i=$('#inp');q=(typeof q==='string'?q:i.value).trim();if(!q)return;if(i)i.value='';if(!cur)newChat(true);
  const h=msgs.filter(m=>!m.tmp&&m.x).slice(-8).map(m=>({role:m.r==='u'?'user':'assistant',content:m.x+(m.conf||[]).map(c=>'\n[Console: "'+c.summary+'" '+(c.done?(c.done==='Cancelled'?'was cancelled by the engineer':'result: '+c.done):'is still waiting for the engineer to press Confirm')+']').join('')})).concat([{role:'user',content:q}]);
