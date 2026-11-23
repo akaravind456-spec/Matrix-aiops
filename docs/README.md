@@ -16,6 +16,7 @@ Start with the **Product Overview**, then read what fits your role.
 | SUP-001 | [Support and Troubleshooting](SUP-001-Support-and-Troubleshooting.md) | Fix common faults and ask for help well |
 | LIC-001 | [Licensing and Pricing](LIC-001-Licensing-and-Pricing.md) | See the proposed plans, prices, soft limits and the usage meter |
 | IPR-001 | [Code Protection, Support and Maintenance Plan](IPR-001-Code-Protection-and-Support-Plan.md) | Decide how to protect the code and how updates and support work |
+| GUIDE-001 | [Step-by-Step Case Walkthroughs](GUIDE-001-Step-by-Step-Case-Walkthroughs.md) | Follow each case step by step with a screenshot for every step |
 | DEMO-001 | [Demo Test Cases, Screenshots and Video Script](DEMO-001-Demo-Test-Cases-Screenshots-and-Video-Script.md) | See the live test results, console screenshots and the demo recording script |
 
 ## Customer pack (four short documents)
