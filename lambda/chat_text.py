@@ -15,3 +15,21 @@ def step_limit_reply(tried, has_pending):
     text += ('Check the confirmation buttons below, then tell me what to do next.' if has_pending
              else 'Tell me which part to continue with, for example "just create the ticket" or "just deploy it".')
     return text
+
+
+import re as _re
+
+_WAIT_RX = _re.compile(r'(waiting|wait|need|needs|press|click|awaiting)[^.\n]{0,60}confirm|confirm(ation)?[^.\n]{0,40}(button|console|waiting|pending)', _re.I)
+
+
+def claims_waiting_for_confirm(text):
+    """True when the reply says an action is waiting for the Confirm button."""
+    return bool(_WAIT_RX.search(str(text or '')))
+
+
+NUDGE = ('SYSTEM CHECK: your reply says an action is waiting for the engineer to press Confirm, but you did not queue one in this turn, '
+         'so there is no Confirm button on screen. If the step is still to be done, call the tool now so the button appears. '
+         'If it is already done, say so using the [Console: ... result] lines. Never say something is waiting unless you just called its tool.')
+
+NO_BUTTON = ('There is no Confirm button open right now, so nothing is waiting. Tell me which step to do next '
+             '(for example "launch the clone" or "close the ticket") and I will queue it.')

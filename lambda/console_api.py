@@ -765,13 +765,22 @@ def a_chat(q, u):
     if block:
         msgs[-1]['content'] += block
         span('attach', 'files', time.time(), 'ok', n=n, chars=used)
-    pending, tried = [], []
+    pending, tried, nudged = [], [], False
     for _ in range(CHAT_STEPS):
         msg = _openai(msgs)['choices'][0]['message']
         calls = msg.get('tool_calls') or []
         if not calls:
+            text = msg.get('content') or ''
+            if not pending and chat_text.claims_waiting_for_confirm(text):
+                if not nudged:
+                    # the model says "press Confirm" but queued nothing: make it queue the action or correct itself
+                    nudged = True
+                    msgs.append({'role': 'assistant', 'content': text})
+                    msgs.append({'role': 'user', 'content': chat_text.NUDGE})
+                    continue
+                text = chat_text.NO_BUTTON
             if pending: outcome('held')
-            return {'ok': True, 'reply': msg.get('content') or '', 'confirm': pending}
+            return {'ok': True, 'reply': text, 'confirm': pending}
         msgs.append({'role': 'assistant', 'content': msg.get('content'), 'tool_calls': calls})
         for c in calls:
             try:

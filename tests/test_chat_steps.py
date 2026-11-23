@@ -168,3 +168,12 @@ class MadeUpImageId(unittest.TestCase):
             aiops.ec2, aiops._inst, aiops._audit = old
         self.assertEqual(calls['image'], 'ami-094f198b2c6be81a1')
         self.assertIn('Launched', out)
+
+
+class FalseWaitingClaim(unittest.TestCase):
+    def test_detects_waiting_claims(self):
+        import chat_text as c
+        self.assertTrue(c.claims_waiting_for_confirm('The launch is **waiting for your confirmation** on the console.'))
+        self.assertTrue(c.claims_waiting_for_confirm('Please press Confirm on the console.'))
+        self.assertTrue(c.claims_waiting_for_confirm('Once you press **Confirm** there, I will continue'))
+        self.assertFalse(c.claims_waiting_for_confirm('The disk is at 40 percent and nginx is running.'))
