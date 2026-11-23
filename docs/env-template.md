@@ -45,3 +45,11 @@ New: `DECOM_HOLD_DAYS` (default 7) · `DECOMMISSION_ROLE_ARN` (only if the optio
 
 ## Agent and learning
 `AGENT_KEY` (new random value) · `L1_GROUP` · `L2_GROUP` · `AUTO_AFTER` · `FAMILIES` · `RAG_MIN` · `RAG_REQUIRED` · `LEARN_LOOKBACK_DAYS` · `LEARN_MAX_PER_RUN` · `LEARN_SELF_APPROVE`
+
+## Licence (self-hosted edition)
+
+| Setting | Meaning |
+|---|---|
+| `LICENSE_KEY` | Vendor-signed licence key (`MTX1....`). When set, it alone decides the plan, limits, customer, AWS account and expiry |
+| `LICENSE_ENFORCE` | `1` stops changes (confirm, agent fixes, approvals) without a valid key. Default off |
+| `LICENSE_PLAN`, `LICENSE_SERVERS`, `LICENSE_SEATS`, `LICENSE_NAME` | Old unsigned settings. Ignored when `LICENSE_KEY` is set |

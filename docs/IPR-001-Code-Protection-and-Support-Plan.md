@@ -107,6 +107,45 @@ The current product (everything in the customer's account, soft meter) stays as 
 - Whether customers will accept their ticket and server data going through the vendor account.
 - Where the vendor account runs and who operates it (staffing and on-call).
 
+## 5b. Two separate products
+
+Decision (23 November 2026): we build **both** routes and keep them as **two different products**, not one product with a switch.
+
+| | MATRIX Self-Hosted | MATRIX Managed |
+|---|---|---|
+| Where the code runs | Whole product in the customer's AWS account | Core in the vendor's AWS account; a thin Connector and the console page in the customer's account |
+| Who it suits | Customers who must keep everything inside their own account | Customers who accept a vendor-run service |
+| Protection | Signed licence key, compiled release, contract. Strong against casual copying and editing; **not** a guarantee, because the customer owns the account | The valuable code and the usage meter never leave the vendor account. Real protection |
+| Usage meter | Counts locally; limits come only from the signed key, so editing settings does nothing. A customer who rewrites the code can still bypass it | Counted by the vendor from signed requests; cannot be changed by the customer |
+| Support and updates | Customer deploys each release | Vendor ships fixes without asking the customer to redeploy |
+| Price basis | Annual licence plus support (LIC-001) | Subscription that includes hosting and model cost `[to price]` |
+| Code location in this repository | `lambda/`, `infra/`, `frontend/` (today's product) | `managed/` (to be created in stage 3) |
+
+Each product has its own install guide, release notes and price list. Changes that apply to both (agent behaviour, safety rules, runbooks) are made once and shared.
+
+### Build status
+
+| Stage | Product | Status |
+|---|---|---|
+| 1a. Signed licence key (Ed25519, pure Python, public key built in, vendor tool to make keys) | Self-Hosted | **Done 23 Nov 2026.** `lambda/matrix_ed25519.py`, `lambda/matrix_licence_key.py`, `tools/matrix_licence_sign.py`, 119 tests pass |
+| 1b. Key drives the meter; settings cannot override it; `LICENSE_ENFORCE=1` stops changes without a valid key | Self-Hosted | **Done.** Deployed with enforcement **off** (pilots keep working) |
+| 1c. Compiled release (Nuitka) | Self-Hosted | Not started |
+| 2. Vendor-side meter (usage reported to a vendor endpoint) | Both | Not started |
+| 3. Core and Connector split, vendor account, onboarding | Managed | Not started |
+| 4. Customer onboarding automation | Managed | Not started |
+
+### How the signed key works (Self-Hosted)
+
+1. The vendor makes a key with `tools/matrix_licence_sign.py` and the **private** key, which is kept offline outside the repository. A key names the customer, the AWS account, the plan, the server and seat limits and the expiry, and is signed.
+2. The customer sets it as the `LICENSE_KEY` setting. The product holds only the **public** key, so it can check a key but cannot make or change one.
+3. A key that was edited, expired, signed by someone else, or used in a different AWS account is rejected, and the Licence card says why.
+4. With a valid key, `LICENSE_PLAN`, `LICENSE_SERVERS` and `LICENSE_SEATS` are ignored.
+5. With `LICENSE_ENFORCE=1`, confirms, agent fixes, approvals and the run, service and kill actions stop without a valid key. Reads and chat questions still work. Enforcement is off by default so that pilots and demos are not interrupted.
+
+What it does **not** do: stop someone who edits the Python code to skip the check. That is what stage 1c (compiled build) and stage 3 (vendor-run Core) are for.
+
+Vendor housekeeping: the private key lives only on the owner's machine, in the folder `matrix-vendor-keys` under the owner's user profile (file `matrix-licence-private.key`). Back it up to an offline location now. If it is lost, no new keys can be made without shipping a new public key to every customer.
+
 ## 6. Support and maintenance plan
 
 This is the plan that sits on top of the tiers in MTX-03 part C. Items in square brackets are for the owners to decide.
