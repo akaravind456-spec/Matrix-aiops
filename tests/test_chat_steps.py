@@ -195,3 +195,9 @@ class UserTestFindings(unittest.TestCase):
 
     def test_runbook_title_has_no_markdown_hash(self):
         self.assertIn("re.sub(r'^[#*\s]+', '', before[-1])", self.src)
+
+
+class ResolvedIncidentIsNotOpen(unittest.TestCase):
+    def test_duplicate_check_ignores_resolved_and_closed(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_alarm_intake.py'), encoding='utf-8').read()
+        self.assertIn("stateIN1,2,3", src)

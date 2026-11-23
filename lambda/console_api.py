@@ -499,10 +499,18 @@ def a_service(q, u):
 
 def a_create(q, u):
     """Raises a synthetic alarm into the same ingest webhook as CloudWatch, so duplicate suppression and the agent flow still apply."""
-    if not INGEST:
-        return {'ok': False, 'error': 'INGEST_URL is not configured'}
     i = need_instance(q)
     alarm = re.sub(r'[^A-Za-z0-9-]', '', q.get('alarm', 'Chat-Incident'))[:60] or 'Chat-Incident'
+    if not INGEST:
+        # no webhook configured: use the same intake code that real CloudWatch alarms use
+        import matrix_alarm_intake as intake
+        r = intake.raise_incident(alarm, '%s (raised from MATRIX console by %s)' % (str(q.get('text', ''))[:500], u['name']), i['id'])
+        res = str(r.get('result', ''))
+        if res.startswith('error'):
+            return {'ok': False, 'error': res}
+        if res == 'created':
+            return {'ok': True, 'text': 'Created %s for alarm "%s" on %s. The agent is on it: %s' % (r.get('number'), alarm, i['host'], r.get('agent', ''))}
+        return {'ok': True, 'text': 'Alarm "%s" on %s: %s.' % (alarm, i['host'], res)}
     msg = {'AlarmName': alarm, 'NewStateValue': 'ALARM', 'NewStateReason': '%s (raised from MATRIX console by %s)' % (str(q.get('text', ''))[:500], u['name']),
            'StateChangeTime': datetime.now(timezone.utc).isoformat(), 'Trigger': {'MetricName': 'Manual', 'Dimensions': [{'name': 'InstanceId', 'value': i['id']}]}}
     req = urllib.request.Request(INGEST, method='POST', data=json.dumps({'Type': 'Notification', 'Message': json.dumps(msg)}).encode(),

@@ -49,7 +49,7 @@ def _instance_of_event(detail):
 
 def _already_open(name):
     t = re.sub(r'[^\w .\-\[\]]', '', name)[:60]
-    r = G['sn']('GET', 'incident', {'sysparm_query': 'active=true^short_descriptionLIKE[MATRIX]^short_descriptionLIKE' + t,
+    r = G['sn']('GET', 'incident', {'sysparm_query': 'stateIN1,2,3^short_descriptionLIKE[MATRIX]^short_descriptionLIKE' + t,   # resolved (6) and closed (7) tickets do not count as open
                                     'sysparm_limit': '1', 'sysparm_fields': 'number'}) or []
     return G['val'](r[0]['number']) if r else ''
 
