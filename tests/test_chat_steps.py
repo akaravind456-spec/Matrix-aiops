@@ -201,3 +201,12 @@ class ResolvedIncidentIsNotOpen(unittest.TestCase):
     def test_duplicate_check_ignores_resolved_and_closed(self):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_alarm_intake.py'), encoding='utf-8').read()
         self.assertIn("stateIN1,2,3", src)
+
+
+class NoActionNeeded(unittest.TestCase):
+    def test_alarm_ok_check(self):
+        import autonomy as au
+        ok = ['Cpu-hig-x: OK (Threshold...)\nDisk-High-x: OK (fine)']
+        self.assertTrue(au._alarm_is_ok(ok))
+        self.assertFalse(au._alarm_is_ok(ok + ['Disk-High-x: ALARM (too high)']))
+        self.assertFalse(au._alarm_is_ok(['disk 34% used']))

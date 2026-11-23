@@ -104,7 +104,7 @@ def _group_id(name):
 
 
 def _escalate(ctx, reason):
-    reason = re.sub(r'\s+', ' ', str(reason))[:400]
+    reason = re.sub(r'[*`#]+', '', re.sub(r'\s+', ' ', str(reason))).strip()[:400]
     body = {'work_notes': '[MATRIX AI] Escalated to L2 (MATRIX AI). Reason: %s\nWhat happens next: an L2 engineer needs to take this ticket. The notes above show what I already checked and did.' % reason, 'state': '2'}
     gid = _group_id(L2_GROUP)
     if gid:
@@ -189,6 +189,8 @@ EXTRA = lambda: [
               'name': 'Exact process name from top_cpu_processes (kill_process only)', 'reason': 'Evidence from the diagnostics that justifies this fix'},
              opt=('service', 'pid', 'name')),
     G['_fn']('escalate', 'Hand the incident to a human L2 engineer when no allowed fix fits or the evidence is unclear.', {'reason': 'Why a human is needed'}),
+    G['_fn']('no_action_needed', 'Use this when the checks show there is nothing to fix: the alarm is already back to OK and CPU, memory, disk and services are all normal. '
+             'Do not use it if any alarm is still in ALARM or any measurement is bad.', {'reason': 'One or two plain sentences with the numbers you saw'}),
 ]
 
 
@@ -196,7 +198,7 @@ def _diagnose(ctx):
     system = ("You are MATRIX AI, the L1 SRE agent. Incident %(number)s on server %(host)s, alarm %(alarm)s. Description: %(desc)s\n"
               "Approved runbook (follow it, do not go beyond it):\n%(runbook)s\n"
               "Diagnose with the read-only tools (health_check first, then whatever the alarm needs; use kb_search for the approved runbook). "
-              "Then call propose_fix with ONE fix, or escalate. Fixes available: restart_service (only services: %(svc)s), clear_old_logs, kill_process. "
+              "Then call propose_fix with ONE fix, or no_action_needed if the alarm is already back to OK and everything measured is normal (do not escalate a healthy server), or escalate. Fixes available: restart_service (only services: %(svc)s), clear_old_logs, kill_process. "
               "Never invent a PID or process name: take them from top_cpu_processes output. Never claim a state that no tool result shows. "
               "If the evidence points to something outside these fixes (hardware, network, application bug, data), escalate.") % dict(ctx, svc=', '.join(G['SERVICES']))
     tools = _tools('health_check', 'top_cpu_processes', 'disk_usage', 'service_status', 'check_alarms', 'kb_search', 'cmdb_lookup', 'incident_timeline') + EXTRA()
@@ -209,10 +211,18 @@ def _diagnose(ctx):
         msgs.append({'role': 'assistant', 'content': m.get('content'), 'tool_calls': calls})
         for c in calls:
             n, a = c['function']['name'], _args(c)
+            if n == 'no_action_needed':
+                return {'action': 'no_action', 'reason': a.get('reason', '')}, seen
             if n in ('propose_fix', 'escalate'):
                 return dict(a, action=a.get('action') if n == 'propose_fix' else 'escalate'), seen
             msgs.append({'role': 'tool', 'tool_call_id': c['id'], 'content': _read(n, a, ctx, seen)})
     return {'action': 'escalate', 'reason': 'Diagnosis did not converge within the step limit'}, seen
+
+
+def _alarm_is_ok(seen):
+    """True only if an alarm check was run, it shows OK for the alarms, and no alarm line says ALARM."""
+    text = '\n'.join(str(x) for x in seen)
+    return bool(re.search(r':\s*OK\b', text)) and not re.search(r':\s*ALARM\b', text)
 
 
 def _vet(d, ctx, seen):
@@ -299,6 +309,14 @@ def _run(ctx):
     if hits:
         G['add_note'](ctx['sid'], '[MATRIX AI] I am following the runbook "%s" (it matches this alarm about %d%%).' % (hits[0]['doc'], best * 100))
     d, seen = _diagnose(ctx)
+    if d.get('action') == 'no_action':
+        if not _alarm_is_ok(seen):
+            return _escalate(ctx, 'I found no problem to fix, but the alarm check does not clearly show the alarm is back to OK. %s' % d.get('reason', ''))
+        why = re.sub(r'[*`#]+', '', re.sub(r'\s+', ' ', str(d.get('reason', '')))).strip()[:400]
+        G['add_note'](ctx['sid'], '[MATRIX AI] I checked everything and there is nothing to fix. %s\nThe alarm is already back to OK, so I am closing this ticket. If it comes back, a new ticket will open.' % why)
+        G['a_resolve']({'sys_id': ctx['sid'], 'notes': 'MATRIX AI: no action needed. %s' % why}, AGENT_U)
+        inbox_add('resolved', ctx['number'], '%s closed by MATRIX AI: no action needed. %s' % (ctx['number'], why))
+        return '%s closed: no action needed. %s' % (ctx['number'], why)
     if d.get('action') == 'escalate':
         return _escalate(ctx, d.get('reason', 'Outside approved fixes'))
     try:
