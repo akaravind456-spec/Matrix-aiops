@@ -795,7 +795,7 @@ def a_chat(q, u):
     if block:
         msgs[-1]['content'] += block
         span('attach', 'files', time.time(), 'ok', n=n, chars=used)
-    pending, tried, nudged = [], [], False
+    pending, tried, nudged, seen_calls = [], [], False, {}
     for _ in range(CHAT_STEPS):
         msg = _openai(msgs)['choices'][0]['message']
         calls = msg.get('tool_calls') or []
@@ -827,6 +827,12 @@ def a_chat(q, u):
         for c, out in zip(calls, outs):
             tried.append((c['function']['name'], out))
             msgs.append({'role': 'tool', 'tool_call_id': c['id'], 'content': out})
+            key = (c['function']['name'], c['function'].get('arguments') or '')
+            seen_calls[key] = seen_calls.get(key, 0) + 1
+            if seen_calls[key] >= 3 and c['function']['name'] not in WRITE:
+                # asking the same question again will not change the answer (for example an image still being created)
+                if pending: outcome('held')
+                return {'ok': True, 'reply': 'That is still in progress, so asking again right now will not change the answer. Give it a minute or two, then tell me to continue.', 'confirm': pending}
     span('guard', 'step_limit', time.time(), 'error')
     if pending: outcome('held')
     return {'ok': True, 'reply': chat_text.step_limit_reply(tried, bool(pending)), 'confirm': pending}

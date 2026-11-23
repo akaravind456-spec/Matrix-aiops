@@ -244,3 +244,10 @@ class EnvironmentTagCase(unittest.TestCase):
     def test_lowercase_environment_tag_is_read(self):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'aiops.py'), encoding='utf-8').read()
         self.assertIn("['Environment', 'environment']", src)
+
+
+class PlainResultsAndNoPolling(unittest.TestCase):
+    def test_sources(self):
+        base = os.path.join(os.path.dirname(__file__), '..', 'lambda')
+        self.assertIn('is being created. Next:', open(os.path.join(base, 'matrix_ops_install.py'), encoding='utf-8').read())
+        self.assertIn('seen_calls[key] >= 3', open(os.path.join(base, 'console_api.py'), encoding='utf-8').read())

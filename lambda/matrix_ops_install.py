@@ -120,6 +120,10 @@ def install(g):
             return "Failed: needs_approval - the engineer must Confirm first"
         if r.get("ok") is False:
             return "Failed: " + str(r.get("error") or r.get("message") or "unknown error")
+        if isinstance(r, dict) and r.get("ok") and isinstance(r.get("message"), str):
+            return r["message"]
+        if isinstance(r, dict) and r.get("ok") and r.get("image_id") and r.get("next"):
+            return "Image %s is being created. Next: %s." % (r["image_id"], str(r["next"]).rstrip("."))
         return json.dumps(r, default=str)[:2500]
 
     # ---- per-tool translation from console arguments to skill arguments
