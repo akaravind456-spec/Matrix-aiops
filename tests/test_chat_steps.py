@@ -280,3 +280,33 @@ class RefusalIsExplained(unittest.TestCase):
         self.assertIn('cannot be killed', r)
         self.assertIn('Nothing was changed', r)
         self.assertEqual(c.refusal_reply([('health_check', 'ok')]), '')
+
+
+class OrphanTicketsArePickedUp(unittest.TestCase):
+    def test_sweep_starts_the_agent_on_unstarted_tickets(self):
+        import matrix_alarm_intake as ai
+        started = []
+
+        class FakeAU:
+            @staticmethod
+            def _kick(number, host, alarm):
+                started.append((number, host, alarm))
+                return 'started'
+        old_au, old_g = ai.AU, dict(ai.G)
+        ai.AU = FakeAU
+        calls = []
+
+        def sn(method, table, params=None, body=None):
+            calls.append(table)
+            if table == 'incident':
+                return [{'number': 'INC1', 'sys_id': 's1', 'short_description': '[MATRIX] Nginx-Down-x', 'cmdb_ci': 'x'},
+                        {'number': 'INC2', 'sys_id': 's2', 'short_description': '[MATRIX] Migration of x', 'cmdb_ci': 'x'}]
+            return []
+        ai.G.update({'sn': sn, 'val': lambda v: v, 'raw': lambda v: v})
+        try:
+            out = ai.pick_up_orphans()
+        finally:
+            ai.AU = old_au
+            ai.G.clear(); ai.G.update(old_g)
+        self.assertEqual(started, [('INC1', 'x', 'Nginx-Down-x')])
+        self.assertEqual(len(out), 1)

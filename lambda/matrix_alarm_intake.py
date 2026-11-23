@@ -91,6 +91,38 @@ def on_event(event):
     return res
 
 
+PLANNED_TITLE = r'^\[MATRIX\] (Migration|Deployment|Decommission|Operation|Patching|Resize|Other) of '
+
+
+def pick_up_orphans():
+    """Alarm tickets the agent never started on (for example the background start was cut off by a deploy): start it now.
+    Only [MATRIX] alarm tickets 3 minutes to 1 day old, still New or In Progress, with no [MATRIX AI] note. Never planned-work tickets."""
+    out = []
+    try:
+        rows = G['sn']('GET', 'incident', {
+            'sysparm_query': 'stateIN1,2^short_descriptionSTARTSWITH[MATRIX]^sys_created_onRELATIVELE@minute@ago@3^sys_created_onRELATIVEGE@dayofweek@ago@1',
+            'sysparm_limit': '10', 'sysparm_display_value': 'true', 'sysparm_fields': 'number,sys_id,short_description,cmdb_ci'}) or []
+        for r in rows:
+            title = G['val'](r.get('short_description'))
+            if re.match(PLANNED_TITLE, title):
+                continue
+            sid = G['raw'](r['sys_id'])
+            seen = G['sn']('GET', 'sys_journal_field', {'sysparm_query': 'element_id=%s^element=work_notes^valueLIKE[MATRIX AI]' % sid,
+                                                          'sysparm_limit': '1', 'sysparm_fields': 'sys_id'}) or []
+            if seen:
+                continue
+            host = G['val'](r.get('cmdb_ci'))
+            if not host:
+                continue
+            alarm = re.sub(r'^\[MATRIX\]\s*', '', title)
+            res = AU._kick(G['val'](r['number']), host, alarm)
+            print('MATRIX-ORPHAN-PICKUP', G['val'](r['number']), res)
+            out.append({'number': G['val'](r['number']), 'agent': res})
+    except Exception as e:
+        print('MATRIX-ORPHAN-PICKUP error: %s' % str(e)[:200])
+    return out
+
+
 def sweep():
     out, made = [], 0
     for p in cw.get_paginator('describe_alarms').paginate(AlarmTypes=['MetricAlarm'], StateValue='ALARM'):
@@ -102,7 +134,7 @@ def sweep():
             print('MATRIX-ALARM-SWEEP', r)
             made += r.get('result') == 'created'
             out.append(r)
-    return {'ok': True, 'results': out}
+    return {'ok': True, 'results': out, 'picked_up': pick_up_orphans()}
 
 
 def is_alarm_event(event):
