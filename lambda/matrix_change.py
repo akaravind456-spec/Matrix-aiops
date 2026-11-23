@@ -390,7 +390,10 @@ def install(g):
         g['CHAT_SYSTEM'] = _to_incident_wording(g['CHAT_SYSTEM'].replace('is a CHANGE, not an incident', 'is tracked on an INCIDENT (this ServiceNow has no Change module)')) + (
             " IMPORTANT: planned work uses an INC number. create_change_request creates that incident for you and returns the INC number; "
             "pass it as `number` to every follow-up tool. Never tell the engineer that a CHG or change request is required, and never ask for a CHG number. "
-            "To close finished planned work, call resolve_incident with the INC number and a one-line note (snow_close_change does not work here).")
+            "To close finished planned work, call resolve_incident with the INC number and a one-line note (snow_close_change does not work here). "
+            "To finish a migration use as few steps as possible: migration_validate on the new server id, then migration_cutover with source_id, target_id and the INC number "
+            "(it stops the old server and moves an Elastic IP only if eip_allocation_id is given; if the server has no Elastic IP do not search for one). "
+            "Use the server ids from the [Console: ... result] lines or server_info, never guess them. After cutover call resolve_incident.")
         for t in g['TOOLS']:
             f = t.get('function', {})
             f['description'] = _to_incident_wording(f.get('description', ''))

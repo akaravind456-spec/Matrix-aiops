@@ -313,6 +313,17 @@ def migrate_launch(a, u):
         raise RuntimeError('No subnet in %s in the same VPC as %s' % (az, src['host']))
     tags = [{'Key': 'Name', 'Value': name}, {'Key': 'CreatedBy', 'Value': 'MATRIX'}, {'Key': 'MigratedFrom', 'Value': src['host']}]
     tags += [t for t in d.get('Tags', []) if t['Key'] == 'Environment']
+    # tagged like every other MATRIX server, so health checks, cutover and later fixes are allowed on the clone
+    have = {t['Key'] for t in tags}
+    try:
+        env_tag = _env(src['id'])
+    except Exception:
+        env_tag = os.environ.get('ENVIRONMENT', 'dev')
+    if env_tag in ('', 'unknown'):
+        env_tag = os.environ.get('ENVIRONMENT', 'dev')
+    for k, v in (('matrix-managed', 'true'), ('environment', env_tag), ('change', str(a.get('number', '')) or 'migration')):
+        if k not in have:
+            tags.append({'Key': k, 'Value': v})
     kw = dict(ImageId=image, InstanceType=itype, MinCount=1, MaxCount=1, SubnetId=subs[0]['SubnetId'],
               SecurityGroupIds=[g['GroupId'] for g in d['SecurityGroups']], TagSpecifications=[{'ResourceType': 'instance', 'Tags': tags}])
     if d.get('IamInstanceProfile'):
