@@ -16,7 +16,7 @@ This is the evidence pack for the demo: the test cases we ran against the live s
 console, and a shot-by-shot script for recording the demo video. All results below come from real runs on 23 November 2026
 in AWS account 115891591036 (ap-southeast-2) against a ServiceNow developer instance. Nothing here is simulated.
 
-Automated checks: 104 unit tests pass (`tests/`). The live cases below are the end-to-end checks.
+Automated checks: 106 unit tests pass (`tests/`). The live cases below are the end-to-end checks.
 
 ## 2. Demo test cases
 
@@ -35,34 +35,75 @@ Automated checks: 104 unit tests pass (`tests/`). The live cases below are the e
 
 ## 3. Screenshots
 
-Taken from the S3-hosted console on 23 November 2026. Files are in `docs/images/`.
+Taken from the S3-hosted console on 23 November 2026. Files are in `docs/images/`. Section 3.1 has one screenshot for each test case;
+section 3.2 shows the general console screens.
 
-### 3.1 Dashboard
+### 3.1 One screenshot per test case
+
+**T1. Agent fixes a stopped service with no human (INC0010030).** The ticket notes show the fix, the health check, the status check and the automatic resolve.
+
+![T1](images/T1-agent-fixes-nginx-INC0010030.png)
+
+**T2. Agent closes a false alarm (INC0010027).** The agent checked disk, CPU, memory and the alarm, wrote "nothing to fix" and resolved the ticket.
+
+![T2](images/T2-no-action-needed-INC0010027.png)
+
+**T3. Restart opens its own ticket (INC0010039).** Chat screenshots of the Confirm card and the result are in 3.2 (3.3 and 3.4). The ticket:
+
+![T3](images/T3-restart-auto-ticket-INC0010039.png)
+
+**T4. A failed action keeps the ticket open (INC0010028).** The restart failed (no nginx on that server) and the note says the ticket was not resolved.
+
+![T4](images/T4-failed-action-stays-open-INC0010028.png)
+
+**T5. Deploy a new server from chat (INC0010034).**
+
+![T5](images/T5-deploy-INC0010034.png)
+
+**T6. Migrate to another AZ from chat (INC0010035).**
+
+![T6](images/T6-migrate-INC0010035.png)
+
+**T7. Decommission from chat (INC0010033 and INC0010036).** Assessment, final backup image, stop with a 7-day hold, then the ticket resolved. (INC0010036 was titled "Migration" because the server name contained "migrated"; this is fixed for new tickets.)
+
+![T7](images/T7-decommission-INC0010033-and-36.png)
+
+**T8. Guardrails.** Asking to kill process 1 and stop sshd is refused in plain words and nothing changes.
+
+![T8](images/T8-guardrail-refusal.png)
+
+**T9. Planned-work ticket gate.** No ticket number was typed in T3, T5, T6 or T7; MATRIX opened each one. See those screenshots.
+
+**T10. Account limit.** No screenshot: the AWS `VcpuLimitExceeded` error was seen in the chat during the run, and it could not be reproduced without launching extra servers. The wording is still raw AWS text.
+
+### 3.2 General console screens
+
+#### Dashboard
 What MATRIX is doing, what needs a person, performance and cost.
 
 ![Dashboard](images/01-dashboard.png)
 
-### 3.2 Chat home
+#### Chat home
 Plain-language chat with suggested actions.
 
 ![Chat home](images/02-chat-home.png)
 
-### 3.3 Restart opens a ticket and asks for Confirm
+#### Restart opens a ticket and asks for Confirm (3.3)
 No incident number was typed. MATRIX opened the incident and queued the action.
 
 ![Restart with Confirm](images/03-chat-restart-ticket-confirm.png)
 
-### 3.4 After Confirm: result and closed ticket
+#### After Confirm: result and closed ticket (3.4)
 The result is shown in the chat and the ticket is resolved with a work note.
 
 ![Confirmed and closed](images/06-chat-confirmed-ticket-closed.png)
 
-### 3.5 AI observability
+#### AI observability
 Traces, latency, tool calls, model slots and failures.
 
 ![Observability](images/04-observability.png)
 
-### 3.6 Knowledge and runbooks
+#### Knowledge and runbooks
 The runbooks the agent follows, from ServiceNow and the ops bucket.
 
 ![Knowledge and runbooks](images/05-knowledge-runbooks.png)

@@ -264,3 +264,19 @@ class ResolvedTicketIsNotReused(unittest.TestCase):
     def test_duplicate_search_skips_resolved(self):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_change.py'), encoding='utf-8').read()
         self.assertIn("'stateIN1,2,3^short_description='", src)
+
+
+class ServerNameDoesNotDecideKind(unittest.TestCase):
+    def test_migrated_in_a_name_is_not_a_migration(self):
+        import matrix_change as mc
+        self.assertEqual(mc.planned_kind('decommission test-03-migrated, create the final backup'), 'decommission')
+        self.assertEqual(mc.planned_kind('migrate test-03 to ap-southeast-2a'), 'migration')
+
+
+class RefusalIsExplained(unittest.TestCase):
+    def test_refusal_reply_names_the_rule(self):
+        import chat_text as c
+        r = c.refusal_reply([('kill_process', 'Refused by guard rule (invalid_pid). Nothing was queued or run. Tell the engineer why.')])
+        self.assertIn('cannot be killed', r)
+        self.assertIn('Nothing was changed', r)
+        self.assertEqual(c.refusal_reply([('health_check', 'ok')]), '')

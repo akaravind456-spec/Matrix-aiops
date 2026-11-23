@@ -50,6 +50,8 @@ def operation_kind(text):
 def planned_kind(text):
     """Return migration/deployment/decommission/patching/resize, or '' when it looks like a fault or is unclear."""
     t = str(text or '').lower()
+    # a server name such as test-03-migrated or deploy-web-01 must not decide the kind of work
+    t = re.sub(r'[a-z0-9]+(?:-[a-z0-9]+)+', ' ', t)
     if re.search(FAULT, t):
         return ''
     for kind, rx in PLANNED.items():

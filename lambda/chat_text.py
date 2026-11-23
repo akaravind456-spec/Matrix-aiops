@@ -34,3 +34,26 @@ NUDGE = ('SYSTEM CHECK: your reply says an action is waiting for the engineer to
 
 NO_BUTTON = ('There is no Confirm button open right now, so nothing is waiting. Tell me which step to do next '
              '(for example "launch the clone" or "close the ticket") and I will queue it.')
+
+
+_WHY = {
+    'invalid_pid': 'process 1 and other system processes cannot be killed',
+    'protected_process': 'that process is protected (it keeps the server or remote access alive)',
+    'service_not_allowed': 'that service is not on the allowed list (nginx, httpd, crond and the CloudWatch agent)',
+}
+
+
+def refusal_reply(tried):
+    """When a guard rule refused a change this turn, say so plainly. tried = [(tool_name, result_text), ...]."""
+    why = []
+    for n, o in tried:
+        m = re.search(r'Refused by guard rule \(([a-z_]+)', str(o))
+        if m:
+            why.append((n.replace('_', ' '), _WHY.get(m.group(1), m.group(1).replace('_', ' '))))
+    if not why:
+        return ''
+    lines = ['I did not do that. A safety rule blocked it:']
+    for n, w in list(dict.fromkeys(why))[:4]:
+        lines.append('- %s: %s.' % (n, w))
+    lines.append('Nothing was changed. Tell me what you are trying to fix and I will suggest a safe way.')
+    return chr(10).join(lines)

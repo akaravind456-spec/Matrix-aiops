@@ -801,6 +801,10 @@ def a_chat(q, u):
         calls = msg.get('tool_calls') or []
         if not calls:
             text = msg.get('content') or ''
+            blocked = chat_text.refusal_reply(tried)
+            if blocked and not pending:
+                # a guard rule said no: tell the engineer why, in plain words, instead of talking about a Confirm button
+                return {'ok': True, 'reply': blocked, 'confirm': pending}
             if not pending and chat_text.claims_waiting_for_confirm(text):
                 if not nudged:
                     # the model says "press Confirm" but queued nothing: make it queue the action or correct itself
