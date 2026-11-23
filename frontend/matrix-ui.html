@@ -84,7 +84,10 @@ function licBlock(){const l=DS.lic||{};if(!l.ok)return l.error&&l.error!=='unkno
  const row=(t,x)=>`<div><span class="kl">${t}</span> <b>${x.used}</b> of ${x.limit==null?'unlimited':x.limit}${x.state==='over'?' <span style="color:var(--wa)">over the limit</span>':x.state==='near'?' <span style="color:var(--wa)">close to the limit</span>':''}</div>`;
  return`<h3>Licence</h3><div class="card" style="margin-bottom:14px"><div class="k" style="font-size:18px">${l.licensed?esc(l.plan.charAt(0).toUpperCase()+l.plan.slice(1))+(l.name?' · '+esc(l.name):''):'Evaluation'}</div>
  ${l.licensed?row('Managed servers',l.servers)+row('Approver seats',l.seats):`<div class="s mu">No licence plan is set. ${l.servers.used} managed server${l.servers.used===1?'':'s'} and ${l.seats.used} user${l.seats.used===1?'':'s'} in use.</div>`}
- ${l.status!=='ok'&&l.licensed?'<div class="warn" style="margin:8px 0 0">Usage is at or over the plan limit. Nothing is blocked. Talk to your account owner about a capacity pack or the next plan.</div>':''}</div>`}
+ ${l.signed&&l.key_valid&&l.expires?`<div class="s mu">Signed licence, valid until ${new Date(l.expires*1000).toISOString().slice(0,10)}.</div>`:''}
+ ${l.signed&&!l.key_valid?`<div class="warn" style="margin:8px 0 0">The licence key is not valid: ${esc(l.key_problem||'unknown problem')}.${l.enforced?' Changes are stopped until a valid key is set. Reads still work.':' Ask the vendor for a new key.'}</div>`:''}
+ ${!l.signed&&l.enforced?'<div class="warn" style="margin:8px 0 0">No licence key is set, so changes are stopped. Reads still work.</div>':''}
+ ${l.status!=='ok'&&l.status!=='invalid'&&l.licensed?`<div class="warn" style="margin:8px 0 0">Usage is at or over the plan limit. ${l.enforced?'':'Nothing is blocked. '}Talk to your account owner about a capacity pack or the next plan.</div>`:''}</div>`}
 function costBlock(){const c=DS.cost||{},o=DS.llm||{};const llm=o.ok?o.total:0,unk=o.ok?(o.unknown||[]).length:0;
  const rows=o.ok?(o.rows||[]).map(m=>`<tr><td>${esc(m.model)}</td><td>${m.calls}</td><td>${fmt(m.in||0)} / ${fmt(m.out||0)}</td><td class="s">${priceTxt(m)}${m.note?`<div class="mu">${esc(m.note)}</div>`:''}</td><td>${m.cost==null?'–':usd(m.cost)}</td></tr>`).join(''):'';
  const aws=c.ok?c.total:0,total=aws+llm;

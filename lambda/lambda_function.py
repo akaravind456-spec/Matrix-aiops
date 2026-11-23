@@ -24,10 +24,11 @@ matrix_cost_action.install(g)
 matrix_ops_install.install(g)   # patching, migration, deployment, decommission and extra ServiceNow tools
 matrix_console_extras.install(g)  # LLM cost from a price table, ServiceNow KB and AWS document lists, one upload box
 matrix_alarm_intake.install(g)  # alarm -> incident -> agent, all inside this one function
-matrix_license.install(g)         # usage meter for the Licence card; never blocks anything
+matrix_license.install(g)         # usage meter and signed-key check for the Licence card
 matrix_closeout.install(g)
 learning.install(g)     # last: it wraps the agent run and the dashboard
 matrix_change.install(g)
+matrix_license.install_gate(g)   # last: with LICENSE_ENFORCE=1 changes stop without a valid signed key
 
 _console = base.handler
 

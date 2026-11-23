@@ -5,6 +5,9 @@ Entry file (lambda_function.py), before learning.install(g):
     import matrix_license
     matrix_license.install(g)
 
+Signed key (self-hosted edition): LICENSE_KEY holds a vendor-signed key (see matrix_licence_key.py). When it is present, the plan, limits,
+customer name, AWS account and expiry come ONLY from the signed key and the LICENSE_PLAN/SERVERS/SEATS settings below are ignored, so editing
+a setting cannot raise a limit. LICENSE_ENFORCE=1 makes changes (confirm, agent fixes, approvals) stop when there is no valid key.
 Settings (all optional):
   LICENSE_PLAN     starter | team | commander | custom      (unset = evaluation, no limits shown)
   LICENSE_SERVERS  number, overrides the plan's server limit (use with custom deals); 0 or 'unlimited' = no limit
@@ -17,6 +20,8 @@ Prices are NOT in this file. They live in docs/LIC-001-Licensing-and-Pricing.md.
 The Lambda role needs ec2:DescribeInstances (already in the stack).
 """
 import json, os, time
+
+import matrix_licence_key as LK
 
 PLANS = {
     'starter':   {'servers': 25,   'seats': 2},
@@ -55,6 +60,37 @@ def limits(env=None):
     return plan, name, base
 
 
+def resolve(env=None, account_id='', now=None):
+    """The licence in force. A signed LICENSE_KEY wins over every other setting."""
+    env = os.environ if env is None else env
+    key = str(env.get('LICENSE_KEY', '')).strip()
+    if key:
+        c = LK.check(key, account_id, now)
+        if c['valid']:
+            cl = c['claims']
+            return {'plan': str(cl.get('p', 'custom')).lower()[:20], 'name': str(cl.get('c', ''))[:80],
+                    'limits': {'servers': _num(cl.get('s')), 'seats': _num(cl.get('u'))},
+                    'signed': True, 'valid': True, 'reason': '', 'expires': cl.get('e') or None}
+        return {'plan': 'invalid', 'name': str(c['claims'].get('c', ''))[:80], 'limits': {'servers': None, 'seats': None},
+                'signed': True, 'valid': False, 'reason': c['reason'], 'expires': c['claims'].get('e') or None}
+    plan, name, lim = limits(env)
+    return {'plan': plan, 'name': name, 'limits': lim, 'signed': False, 'valid': False,
+            'reason': 'no signed licence key is set', 'expires': None}
+
+
+def enforced(env=None):
+    env = os.environ if env is None else env
+    return str(env.get('LICENSE_ENFORCE', '')).strip().lower() in ('1', 'true', 'yes')
+
+
+def blocked(env=None, account_id='', now=None):
+    """Why changes must stop, or '' when they may run. Only ever non-empty when LICENSE_ENFORCE is on."""
+    if not enforced(env):
+        return ''
+    r = resolve(env, account_id, now)
+    return '' if r['valid'] else 'MATRIX is not licensed for changes: %s. Reads still work. Ask the vendor for a valid licence key.' % r['reason']
+
+
 def state(used, limit):
     if limit is None:
         return 'ok'
@@ -86,8 +122,9 @@ def count_servers(ec2, environment):
             return n
 
 
-def report(ec2, users, environment, env=None, now=None):
-    plan, name, lim = limits(env)
+def report(ec2, users, environment, env=None, now=None, account_id=''):
+    lic = resolve(env, account_id, now)
+    plan, name, lim = lic['plan'], lic['name'], lic['limits']
     now = time.time() if now is None else now
     key = ('servers', environment)
     hit = CACHE.get(key)
@@ -99,10 +136,28 @@ def report(ec2, users, environment, env=None, now=None):
     seats = count_seats(users)
     s_state, p_state = state(servers, lim['servers']), state(seats, lim['seats'])
     status = 'over' if 'over' in (s_state, p_state) else 'near' if 'near' in (s_state, p_state) else 'ok'
-    return {'ok': True, 'plan': plan, 'name': name, 'licensed': plan != 'evaluation',
+    if lic['signed'] and not lic['valid']:
+        status = 'invalid'
+    return {'ok': True, 'plan': plan, 'name': name, 'licensed': plan not in ('evaluation', 'invalid'),
             'servers': {'used': servers, 'limit': lim['servers'], 'state': s_state},
             'seats': {'used': seats, 'limit': lim['seats'], 'state': p_state},
-            'status': status, 'enforced': False}
+            'status': status, 'enforced': enforced(env),
+            'signed': lic['signed'], 'key_valid': lic['valid'], 'key_problem': lic['reason'] if lic['signed'] else '',
+            'expires': lic['expires']}
+
+
+_ACCT = {}
+
+
+def account_id():
+    """The AWS account this Lambda runs in (cached). Empty if it cannot be read."""
+    if 'id' not in _ACCT:
+        try:
+            import boto3
+            _ACCT['id'] = boto3.client('sts').get_caller_identity()['Account']
+        except Exception:
+            return ''
+    return _ACCT['id']
 
 
 def install(g):
@@ -115,7 +170,7 @@ def install(g):
             users = []
         try:
             ec2 = boto3.client('ec2')
-            return report(ec2, users, os.environ.get('ENVIRONMENT', 'dev'))
+            return report(ec2, users, os.environ.get('ENVIRONMENT', 'dev'), account_id=account_id())
         except Exception as e:
             msg = str(e)
             if 'UnauthorizedOperation' in msg or 'AccessDenied' in msg:
@@ -123,3 +178,18 @@ def install(g):
             return {'ok': False, 'error': msg[:300]}
 
     g['ACTIONS']['license'] = a_license
+
+
+def install_gate(g):
+    """Call this LAST in lambda_function.py, after every other install, so it wraps whatever the other modules put in ACTIONS.
+    With LICENSE_ENFORCE=1, every action that changes something stops unless a valid signed key is present. Reads keep working."""
+    def gate(fn):
+        def wrapped(q, u):
+            why = blocked(account_id=account_id())
+            if why:
+                return {'ok': False, 'error': why}
+            return fn(q, u)
+        return wrapped
+    for name in ('chat_confirm', 'agent_run', 'decide', 'run', 'service', 'kill'):
+        if name in g['ACTIONS']:
+            g['ACTIONS'][name] = gate(g['ACTIONS'][name])

@@ -321,7 +321,18 @@ def _dev_host(ctx):
         return False
 
 
+def _licence_block():
+    try:
+        import matrix_license
+        return matrix_license.blocked(account_id=matrix_license.account_id())
+    except Exception:
+        return ''
+
+
 def _run(ctx):
+    why = _licence_block()
+    if why:
+        return _escalate(ctx, why)
     G['add_note'](ctx['sid'], '[MATRIX AI] I picked up this ticket and started looking at %s.' % ctx['host'])
     import rag
     hits = rag.retrieve(ctx['alarm'])
