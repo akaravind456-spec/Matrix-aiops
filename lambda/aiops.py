@@ -163,8 +163,14 @@ def job_status(a, u):
                 pass
         return text
     if kind == 'ami':
-        im = ec2.describe_images(ImageIds=[rest])['Images']
-        return 'Image %s: %s' % (rest, im[0]['State'] if im else 'not found')
+        try:
+            im = ec2.describe_images(ImageIds=[rest])['Images']
+        except Exception:
+            im = []
+        if not im:
+            return ('Image %s was not found. The id may be wrong: use the exact "Job id: ami:ami-..." text from the earlier Done message, '
+                    'do not guess it.' % rest)
+        return 'Image %s: %s' % (rest, im[0]['State'])
     return 'Unknown job id. It must look like ssm:..., cb:... or ami:...'
 
 
@@ -288,7 +294,17 @@ def migrate_launch(a, u):
         raise RuntimeError('Need image_id (ami-...), az (for example ap-southeast-2a) and new_name')
     if itype not in ALLOWED_TYPES:
         raise RuntimeError('Instance type not allowed. Allowed: ' + ', '.join(ALLOWED_TYPES))
-    im = ec2.describe_images(ImageIds=[image])['Images']
+    try:
+        im = ec2.describe_images(ImageIds=[image])['Images']
+    except Exception:
+        im = []
+    if not im:
+        # the model sometimes writes an image id that does not exist; use the newest real image MATRIX made of this server
+        mine = ec2.describe_images(Owners=['self'], Filters=[{'Name': 'tag:Source', 'Values': [src['host']]}])['Images']
+        mine = [i for i in mine if i['State'] == 'available'] or mine
+        if mine:
+            im = [max(mine, key=lambda i: i.get('CreationDate', ''))]
+            image = im[0]['ImageId']
     if not im or im[0]['State'] != 'available':
         raise RuntimeError('Image %s is not available yet. Check job_status ami:%s' % (image, image))
     d = ec2.describe_instances(InstanceIds=[src['id']])['Reservations'][0]['Instances'][0]

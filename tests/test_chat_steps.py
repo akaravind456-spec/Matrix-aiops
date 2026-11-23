@@ -133,3 +133,38 @@ class ServiceNowAsleep(unittest.TestCase):
     def test_hibernating_page_gives_a_plain_message(self):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'console_api.py'), encoding='utf-8').read()
         self.assertIn("ServiceNow is asleep", src)
+
+
+class MadeUpImageId(unittest.TestCase):
+    def test_launch_falls_back_to_the_real_image(self):
+        import aiops
+        calls = {}
+
+        class E:
+            def describe_images(self, **kw):
+                if 'ImageIds' in kw:
+                    raise RuntimeError('InvalidAMIID.Malformed')
+                calls['owners'] = kw['Owners']
+                return {'Images': [{'ImageId': 'ami-094f198b2c6be81a1', 'State': 'available', 'CreationDate': '2026-01-02'},
+                                   {'ImageId': 'ami-0aaaaaaaaaaaaaaaa', 'State': 'available', 'CreationDate': '2026-01-01'}]}
+
+            def describe_instances(self, **kw):
+                return {'Reservations': [{'Instances': [{'VpcId': 'v', 'SecurityGroups': [{'GroupId': 'sg-1'}], 'Tags': []}]}]}
+
+            def describe_subnets(self, **kw):
+                return {'Subnets': [{'SubnetId': 'subnet-1'}]}
+
+            def run_instances(self, **kw):
+                calls['image'] = kw['ImageId']
+                return {'Instances': [{'InstanceId': 'i-0123456789abcdef0'}]}
+
+        old = (aiops.ec2, aiops._inst, aiops._audit)
+        aiops.ec2 = E()
+        aiops._inst = lambda h: {'id': 'i-1', 'host': 'test-03', 'type': 't3.micro'}
+        aiops._audit = lambda *a, **k: None
+        try:
+            out = aiops.migrate_launch({'host': 'test-03', 'image_id': 'ami-05c65ae687e3ca889', 'az': 'ap-southeast-2a', 'new_name': 'test-03-migrated'}, {})
+        finally:
+            aiops.ec2, aiops._inst, aiops._audit = old
+        self.assertEqual(calls['image'], 'ami-094f198b2c6be81a1')
+        self.assertIn('Launched', out)
