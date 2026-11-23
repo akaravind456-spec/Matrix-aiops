@@ -165,7 +165,35 @@ def snow_article(title, text, publish=True):
     if publish:
         body['workflow_state'] = 'published'
     r = G['sn']('POST', 'kb_knowledge', body=body) or {}
+    if publish and _val(r.get('workflow_state')) not in ('published', 'Published'):
+        # ServiceNow often ignores workflow_state on insert and keeps a draft: publish it with a second call
+        try:
+            G['sn']('PATCH', 'kb_knowledge/' + G['raw'](r.get('sys_id')), body={'workflow_state': 'published'})
+        except Exception as e:
+            print('matrix_console_extras: could not publish %s: %s' % (_val(r.get('number')), str(e)[:150]))
     return _val(r.get('number')) or '(created)'
+
+
+def a_kb_publish_drafts(q, u):
+    """Publish every draft article in the runbook knowledge base so the agent and the Runbooks screen can use it."""
+    rows = G['sn']('GET', 'kb_knowledge', {'sysparm_query': 'workflow_state=draft^kb_knowledge_base=' + _kb_base_id(), 'sysparm_limit': '100',
+                                           'sysparm_fields': 'sys_id,number,short_description'}) or []
+    done, failed = [], []
+    for r in rows:
+        try:
+            G['sn']('PATCH', 'kb_knowledge/' + G['raw'](r['sys_id']), body={'workflow_state': 'published'})
+            now = G['sn']('GET', 'kb_knowledge', {'sysparm_query': 'sys_id=' + G['raw'](r['sys_id']), 'sysparm_limit': '1', 'sysparm_fields': 'workflow_state'}) or []
+            if now and _val(now[0].get('workflow_state')) == 'published':
+                done.append(_val(r.get('number')))
+            else:
+                failed.append(_val(r.get('number')))
+        except Exception as e:
+            failed.append('%s: %s' % (_val(r.get('number')), str(e)[:120]))
+    out = {'ok': True, 'drafts_found': len(rows), 'published': done, 'not_published': failed[:10]}
+    if failed and not done:
+        out['why'] = ('ServiceNow accepted the request but kept the articles as drafts. The integration user probably lacks the knowledge_admin role, '
+                      'or the knowledge base has an approval step. Publish them in ServiceNow: Knowledge > Articles, select the drafts, then Publish.')
+    return out
 
 
 # ---------------------------------------------------------------- AWS Systems Manager documents
@@ -272,4 +300,4 @@ def install(g):
     G.update(g)
     G['RAG'] = rag
     g['ACTIONS'].update({'llm_cost': a_llm_cost, 'prices': a_prices, 'snow_kb_list': a_snow_kb_list, 'snow_kb_get': a_snow_kb_get,
-                         'ssm_docs_list': a_ssm_docs_list, 'ssm_doc_get': a_ssm_doc_get, 'kb_publish': a_kb_publish})
+                         'ssm_docs_list': a_ssm_docs_list, 'ssm_doc_get': a_ssm_doc_get, 'kb_publish': a_kb_publish, 'kb_publish_drafts': a_kb_publish_drafts})

@@ -285,6 +285,27 @@ def migrate_create_image(a, u):
     return _started('ami:' + r['ImageId'], 'Image creation (crash-consistent unless reboot=yes)')
 
 
+def _real_image(host, image):
+    """The image id if it exists, else the newest available image MATRIX made of this server ('' if none)."""
+    try:
+        im = ec2.describe_images(ImageIds=[image])['Images']
+        if im:
+            return image
+    except Exception:
+        pass
+    try:
+        mine = ec2.describe_images(Owners=['self'], Filters=[{'Name': 'tag:Source', 'Values': [host]}])['Images']
+    except Exception:
+        return ''
+    mine = [i for i in mine if i['State'] == 'available'] or mine
+    return max(mine, key=lambda i: i.get('CreationDate', ''))['ImageId'] if mine else ''
+
+
+def _launch_label(a):
+    img = _real_image(a['host'], str(a.get('image_id', ''))) or str(a.get('image_id', ''))
+    return 'Launch %s in %s as a clone of %s from %s' % (a['new_name'], a['az'], a['host'], img)
+
+
 def migrate_launch(a, u):
     src = _inst(a['host'])
     image, az = str(a.get('image_id', '')), str(a.get('az', ''))
@@ -387,7 +408,7 @@ def install(g):
         'run_playbook': (playbook_run_check, playbook_run),
         'terraform_apply': (lambda a: 'Terraform APPLY module %s with [%s]' % (a['module'], a.get('vars', '')), terraform_apply),
         'migrate_create_image': (lambda a: 'Create an image (AMI) of %s' % a['host'], migrate_create_image),
-        'migrate_launch': (lambda a: 'Launch %s in %s as a clone of %s from %s' % (a['new_name'], a['az'], a['host'], a['image_id']), migrate_launch),
+        'migrate_launch': (_launch_label, migrate_launch),
         'data_sync': (data_sync_check, data_sync),
     })
     g['TOOLS'].extend([
