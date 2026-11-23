@@ -139,7 +139,15 @@ def sn(method, path, params=None, body=None):
                                  headers={'Authorization': AUTH, 'Accept': 'application/json', 'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            return json.loads(r.read() or b'{}').get('result')
+            data = r.read() or b'{}'
+            try:
+                return json.loads(data).get('result')
+            except ValueError:
+                low = data[:2000].lower()
+                if b'hibernat' in low:
+                    raise RuntimeError('ServiceNow is asleep (the free developer instance hibernates after inactivity). '
+                                       'Wake it at developer.servicenow.com, wait a few minutes, then try again.')
+                raise RuntimeError('ServiceNow sent back a web page, not data. It may be waking up or unavailable. Try again in a few minutes.')
     except urllib.error.HTTPError as e:
         raise RuntimeError('ServiceNow %s: %s' % (e.code, e.read()[:200].decode('utf8', 'ignore')))
 

@@ -127,3 +127,9 @@ class ConsoleHistory(unittest.TestCase):
     def test_confirm_results_are_sent_back_to_the_model(self):
         html = open(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'matrix-ui.html'), encoding='utf-8').read()
         self.assertIn("[Console: \"'+c.summary", html)
+
+
+class ServiceNowAsleep(unittest.TestCase):
+    def test_hibernating_page_gives_a_plain_message(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'console_api.py'), encoding='utf-8').read()
+        self.assertIn("ServiceNow is asleep", src)
