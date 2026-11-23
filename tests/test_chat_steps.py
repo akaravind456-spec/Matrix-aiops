@@ -251,3 +251,16 @@ class PlainResultsAndNoPolling(unittest.TestCase):
         base = os.path.join(os.path.dirname(__file__), '..', 'lambda')
         self.assertIn('is being created. Next:', open(os.path.join(base, 'matrix_ops_install.py'), encoding='utf-8').read())
         self.assertIn('seen_calls[key] >= 3', open(os.path.join(base, 'console_api.py'), encoding='utf-8').read())
+
+
+class ClosedConsoleTicketIsForgotten(unittest.TestCase):
+    def test_helper_exists(self):
+        import matrix_change as mc
+        self.assertTrue(callable(mc._drop_closed_number))
+        self.assertEqual(mc._drop_closed_number({'a': 1}), {'a': 1})
+
+
+class ResolvedTicketIsNotReused(unittest.TestCase):
+    def test_duplicate_search_skips_resolved(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_change.py'), encoding='utf-8').read()
+        self.assertIn("'stateIN1,2,3^short_description='", src)

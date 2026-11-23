@@ -85,11 +85,17 @@ A proposal that fails any check is escalated. The model's own words are never ex
 
 | Case | Result |
 |---|---|
-| Dev environment and the fix is not `kill_process` | Runs automatically |
+| Dev environment (tag `environment` or `Environment`, either spelling) and the fix is not `kill_process` | Runs automatically |
 | The same alarm was auto-resolved at least `AUTO_AFTER` times before (default 3) | Runs automatically (a known pattern) |
 | Anything else, including every `kill_process` that is not a known pattern, and every non-dev server | An approval card appears in the console; a human must Confirm or Reject |
 
 A human approval runs the fix **as that person**; the note says who approved it. Approvals expire with the 30-day record.
+
+### 6.1 Working without a runbook, and trying twice
+
+- On a **dev** server with no matching runbook, the agent still works, using only the fixed fix list. On any other server, no matching runbook means escalation.
+- If a fix is applied and recovery is not confirmed, the agent looks again with what it learned and may try **one different** safe fix (same approval rules) before it escalates. It never repeats the same fix.
+- If every check shows the problem has already gone and the alarm is back to **OK**, the agent writes "nothing to fix" on the ticket and closes it itself ("no action needed"). If the alarm state is not clearly OK, it escalates instead.
 
 ## 7. Judging recovery
 
@@ -119,6 +125,8 @@ ownership (moves it to **Assigned to engineers**) or resolves it.
 | Planned work (patch, migrate, deploy, decommission) | Needs Confirm **and** an approved, scheduled change. With `CHANGE_MODE=incident`, an open incident is accepted and Confirm is the approval |
 | Decommission terminate | Needs a stopped server for the hold period (default 7 days), a backup image, a human-applied tag `decommission-approved=true`, and the optional decommission role |
 | Resize and terminate in the normal role | Refused by the role itself |
+
+**Tickets are opened for the engineer.** A request to restart, reboot, start, stop or kill, or planned work such as migration, deployment or decommission, makes MATRIX open an incident in code (the chat never asks the engineer for a number). Only open tickets (New, In Progress, On Hold) are reused; a resolved ticket is never reused. After Confirm, a successful simple action resolves the ticket with a plain note. A **failed** action never resolves it: the ticket stays open with a note. Long jobs (images, patching, migration, deployment, decommission) leave the ticket open until the engineer or the agent closes it.
 
 The chat model is told never to invent a ticket number, never to retry with a different number after a refusal, and to stop
 after the same tool error twice.

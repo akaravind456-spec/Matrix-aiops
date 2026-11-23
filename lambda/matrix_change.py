@@ -125,7 +125,7 @@ def _to_incident_wording(text):
 def _create_as_incident(a, u, kind, short, details, host, env, ci_id):
     """CHANGE_MODE=incident: the planned work is tracked on an incident (the ServiceNow instance has no Change module)."""
     title = ('[MATRIX] ' + short)[:160]
-    dup = G['sn']('GET', 'incident', {'sysparm_query': 'active=true^short_description=' + re.sub(r'[\^=]', ' ', title),
+    dup = G['sn']('GET', 'incident', {'sysparm_query': 'stateIN1,2,3^short_description=' + re.sub(r'[\^=]', ' ', title),
                                       'sysparm_limit': '1', 'sysparm_fields': 'number,sys_id'}) or []
     if dup:
         n = G['raw'](dup[0]['number'])
@@ -179,7 +179,7 @@ def create_change_request(a, u):
 
     # reuse an open change for the same server and kind instead of creating duplicates
     if ci_id:
-        dup = G['sn']('GET', 'change_request', {'sysparm_query': 'active=true^cmdb_ci=%s^short_descriptionLIKE%s' % (ci_id, kind),
+        dup = G['sn']('GET', 'change_request', {'sysparm_query': 'stateIN1,2,3^cmdb_ci=%s^short_descriptionLIKE%s' % (ci_id, kind),
                                                 'sysparm_limit': '1', 'sysparm_fields': 'number,sys_id'}) or []
         if dup:
             n = G['raw'](dup[0]['number'])
@@ -322,6 +322,20 @@ def _precreate(q, u, user_text, last_user=''):
         return q
 
 
+def _drop_closed_number(q):
+    """The console remembers the last incident the engineer looked at. If that ticket is already resolved or closed, forget it, so a new request gets a new ticket."""
+    try:
+        n = re.sub(r'[^A-Za-z0-9]', '', str(q.get('number', '')))
+        if not n:
+            return q
+        rows = G['sn']('GET', 'incident', {'sysparm_query': 'number=' + n, 'sysparm_limit': '1', 'sysparm_fields': 'state'}) or []
+        if rows and str(G['raw'](rows[0].get('state'))) in ('6', '7', '8'):
+            return {k: v for k, v in q.items() if k != 'number'}
+    except Exception as e:
+        print('matrix_change: closed-number check failed: %s' % str(e)[:150])
+    return q
+
+
 def _wrap_chat(g):
     import json as _json
     orig = g['ACTIONS'].get('chat')
@@ -338,6 +352,7 @@ def _wrap_chat(g):
             last_user = re.sub(r'\[Console:[^\]]*\]', ' ', mine[-1]) if mine else ''
         except Exception:
             text, user_text, last_user = '', '', ''
+        q = _drop_closed_number(q)
         q = _precreate(q, u, user_text, last_user)
         chosen = _select(full, text)
         chosen = _usable(chosen, MODE.incident_mode(), bool(os.environ.get('TF_PROJECT', '').strip()))

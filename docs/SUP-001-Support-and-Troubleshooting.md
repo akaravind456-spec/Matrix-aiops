@@ -65,6 +65,11 @@ import error means a code file is missing.
 | Dashboard **human intervention is 100%** from old records | Old test events count | Set `STATS_SINCE` to a start date, or delete old inbox records |
 | **Average time to resolve** looks wrong | It is calculated from resolved ServiceNow incidents, including old ones | Resolve or archive old test tickets, or filter by date `[feature request]` |
 | A server is **never touched** | It lacks the `matrix-managed` or `environment` tag, the SSM agent is offline, or its `Name` tag does not match the CI | Fix the tags and the agent |
+| Launch fails with **VcpuLimitExceeded** | The AWS account allows only 8 vCPUs for that instance family; running servers already use them | Stop or decommission a server, or ask AWS to raise the limit |
+| Cutover or validation fails with **UnauthorizedOperation ... DescribeInstanceStatus** | The executor role is missing that permission | Paste the current `infra/matrix-executor-policy-fixed.json` into the `matrix-executor-dev` policy |
+| Console says **"ServiceNow is asleep"** | The free developer instance hibernates | Wake it at developer.servicenow.com, then retry |
+| Agent asks for **approval on a dev server** | The server lacks an `environment` tag (either spelling), so it is treated as unknown | Add `environment=dev` |
+| Chat cannot sign in or stays on the sign-in page | `USERS` in settings is not a valid JSON array | Fix the JSON; the console is down for everyone until it is valid |
 | Many incidents at once | An alarm storm | The sweep creates at most `ALARM_MAX_PER_RUN` per run. Use RSK-001 level 1 if needed |
 
 ## 4. How to request help
@@ -96,6 +101,9 @@ Include:
 - Autonomous fixes are Linux-only, over Systems Manager.
 - The per-team chargeback report is manual (COM-001).
 - The one-template install has not been rehearsed in a clean account.
+- The hosted console page is plain HTTP (S3 website). HTTPS needs CloudFront, which is not set up.
+- Chat answers take 10 to 45 seconds; most of that is the model.
+- A resolved or stopped decommission leaves termination as a manual, tag-gated step on purpose.
 
 ## Change history
 | Version | Date | Author | Summary | Approval |

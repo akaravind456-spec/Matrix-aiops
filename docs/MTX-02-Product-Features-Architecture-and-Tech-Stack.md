@@ -45,11 +45,11 @@ list is closed: restart an allow-listed service, clear old logs, or kill one run
 
 ### 2.2 Chat
 Engineers ask in plain language. Read checks run at once. Changes show an action card and run only when the engineer
-confirms, against a real, open ServiceNow ticket. Every result is written to the ticket.
+confirms, against a real, open ServiceNow ticket. For restart, reboot, start, stop and planned work, MATRIX opens that ticket itself, so the engineer never has to type a number. Every result is written to the ticket, and a failed action keeps the ticket open. Replies are formatted (tables, lists, bold), and several read checks run side by side to keep answers quick.
 
 ### 2.3 Planned work
 Patching (with a rollback image first), migration (image, copy, launch, validate, cutover, rollback), new server deployment,
-and a staged decommission. Each step is a confirmed action behind a ticket. See `tool-catalog.md`.
+and a staged decommission (assess, final backup image, stop, then terminate only after a person applies a tag). Each step is a confirmed action behind a ticket. The full deploy, migrate, decommission cycle was run end to end from the chat on 23 November 2026 (see DEMO-001). See `tool-catalog.md`.
 
 ### 2.4 ServiceNow tools
 Create, search, update and link incidents, changes and problems; knowledge search; CMDB lookups; SLA; work notes with secrets
@@ -67,6 +67,9 @@ credits, with the credits shown separately) and model cost from token prices.
 
 ### 2.7 Observability
 Traces for every model call, token use, and the state of every model in the chain. See MTX-04.
+
+### 2.7a Agent autonomy
+The agent resolves most dev incidents without a human: it diagnoses, runs the safe fix, checks the result, tries a second safe fix if needed, and closes tickets where there is nothing to fix. Production servers and process kills still need one approval click. In the 23 November 2026 test, a stopped nginx on a dev server was found, restarted, verified and resolved in about 40 seconds with no human step.
 
 ### 2.8 Why an agent, not another tool
 
