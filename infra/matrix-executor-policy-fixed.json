@@ -127,7 +127,12 @@
         {
             "Condition": {
                 "StringEquals": {
-                    "ec2:CreateAction": "RunInstances"
+                    "ec2:CreateAction": [
+                        "RunInstances",
+                        "CreateImage",
+                        "CopyImage",
+                        "CreateSnapshot"
+                    ]
                 }
             },
             "Action": "ec2:CreateTags",
@@ -154,6 +159,87 @@
             "Resource": "arn:aws:logs:ap-southeast-2:115891591036:log-group:/matrix/executor-audit-dev:*:*",
             "Effect": "Allow",
             "Sid": "WriteAudit"
+        },
+        {
+            "Sid": "CreateImageOfTaggedInstances",
+            "Effect": "Allow",
+            "Action": "ec2:CreateImage",
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:instance/*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/matrix-managed": "true",
+                    "aws:ResourceTag/environment": "dev"
+                }
+            }
+        },
+        {
+            "Sid": "CreateImageOutputs",
+            "Effect": "Allow",
+            "Action": "ec2:CreateImage",
+            "Resource": [
+                "arn:aws:ec2:ap-southeast-2::image/*",
+                "arn:aws:ec2:ap-southeast-2::snapshot/*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/matrix-managed": "true",
+                    "aws:RequestTag/environment": "dev"
+                },
+                "Null": {
+                    "aws:RequestTag/change": "false"
+                }
+            }
+        },
+        {
+            "Sid": "CopyImage",
+            "Effect": "Allow",
+            "Action": "ec2:CopyImage",
+            "Resource": "arn:aws:ec2:ap-southeast-2::image/*"
+        },
+        {
+            "Sid": "MoveElasticIp",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AssociateAddress",
+                "ec2:DisassociateAddress"
+            ],
+            "Resource": "arn:aws:ec2:ap-southeast-2:115891591036:instance/*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/matrix-managed": "true",
+                    "aws:ResourceTag/environment": "dev"
+                }
+            }
+        },
+        {
+            "Sid": "MoveElasticIpResources",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AssociateAddress",
+                "ec2:DisassociateAddress"
+            ],
+            "Resource": [
+                "arn:aws:ec2:ap-southeast-2:115891591036:elastic-ip/*",
+                "arn:aws:ec2:ap-southeast-2:115891591036:network-interface/*"
+            ]
+        },
+        {
+            "Sid": "TagImagesOnCreate",
+            "Effect": "Allow",
+            "Action": "ec2:CreateTags",
+            "Resource": [
+                "arn:aws:ec2:ap-southeast-2::image/*",
+                "arn:aws:ec2:ap-southeast-2::snapshot/*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "ec2:CreateAction": [
+                        "CreateImage",
+                        "CopyImage",
+                        "CreateSnapshot"
+                    ]
+                }
+            }
         },
         {
             "Action": [
