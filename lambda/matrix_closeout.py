@@ -19,6 +19,13 @@ def install(g):
             # ServiceNow record edits and planned-work tools must never auto-resolve the incident they were filed under
             if tool.startswith(('snow_', 'patch_', 'migration_', 'deployment_', 'decommission_')):
                 return r
+            # the action failed: never resolve. Leave a plain note and keep the ticket open for a person or the agent.
+            if re.search(r'\[Failed\]|^\s*(Failed|Error)\b', r.get('text') or '', re.I | re.M):
+                sid = g['sys_id_of'](num)
+                why = ' '.join((r.get('text') or '').split())[:300]
+                g['sn']('PATCH', 'incident/' + sid, body={'work_notes': '[MATRIX AI] %s confirmed this work, but it did not succeed: %s\nI have NOT resolved this ticket. It stays open.' % (u['name'], why)})
+                r['text'] = (r.get('text') or '') + '\n\nThat did not work, so %s stays open with a note.' % num
+                return r
             # long jobs (AMI, patching, terraform) are not finished yet: leave the ticket open
             if re.search(r'Job id:', r.get('text') or '') or tool in ('migrate_create_image', 'migrate_launch', 'terraform_apply', 'patch_install', 'run_playbook', 'data_sync'):
                 sid = g['sys_id_of'](num)

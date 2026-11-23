@@ -217,3 +217,17 @@ class ResolutionCode(unittest.TestCase):
         src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'console_api.py'), encoding='utf-8').read()
         self.assertIn("def close_code():", src)
         self.assertIn("'close_code': close_code()", src)
+
+
+class RestartOpensTicket(unittest.TestCase):
+    def test_operations_are_detected(self):
+        import matrix_change as mc
+        self.assertEqual(mc.operation_kind('restart nginx on test-03'), 'operation')
+        self.assertEqual(mc.operation_kind('please reboot test-03'), 'operation')
+        self.assertEqual(mc.operation_kind('what is the cpu on test-03'), '')
+
+
+class FailedActionKeepsTicketOpen(unittest.TestCase):
+    def test_failed_text_blocks_auto_resolve(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_closeout.py'), encoding='utf-8').read()
+        self.assertIn("I have NOT resolved this ticket", src)

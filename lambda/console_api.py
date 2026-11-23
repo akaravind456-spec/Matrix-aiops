@@ -6,7 +6,7 @@ Observability variables (optional): LEAD_ROLES (default 'L2 lead,lead,admin', ro
 The Lambda role needs logs:FilterLogEvents on this function's own log group. Set that log group's retention to 14 days.
 Set the Lambda timeout to 120 seconds or more.
 """
-import base64, hashlib, hmac, json, os, re, time, urllib.error, urllib.parse, urllib.request
+import concurrent.futures, base64, hashlib, hmac, json, os, re, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timezone
 import boto3
 import chat_text
@@ -812,12 +812,19 @@ def a_chat(q, u):
             if pending: outcome('held')
             return {'ok': True, 'reply': text, 'confirm': pending}
         msgs.append({'role': 'assistant', 'content': msg.get('content'), 'tool_calls': calls})
-        for c in calls:
+        def _one(c):
             try:
                 args = json.loads(c['function'].get('arguments') or '{}')
             except Exception:
                 args = {}
-            out = _run_tool(c['function']['name'], args, u, pending)
+            return _run_tool(c['function']['name'], args, u, pending)
+        if len(calls) > 1:
+            # several tool calls in one step are independent, so run them side by side instead of one after another
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(6, len(calls))) as ex:
+                outs = list(ex.map(_one, calls))
+        else:
+            outs = [_one(calls[0])]
+        for c, out in zip(calls, outs):
             tried.append((c['function']['name'], out))
             msgs.append({'role': 'tool', 'tool_call_id': c['id'], 'content': out})
     span('guard', 'step_limit', time.time(), 'error')

@@ -38,7 +38,13 @@ PLANNED = {
     'patching': r'\b(patch\w*|os update|security update|upgrade (the )?(os|kernel|server))\b',
     'resize': r'\b(resize|change (the )?instance type|scale (up|down) (the )?(server|instance))\b',
 }
+OPERATION = r'\b(restart\w*|reboot\w*|re-?start|stop|start|kill|clear (old )?logs?)\b'
 FAULT = r'\b(fail\w*|error\w*|crash\w*|outage|is down|went down|not working|unresponsive|unreachable|exception|timed? ?out)\b'
+
+
+def operation_kind(text):
+    """'operation' when the engineer's latest message asks to restart, reboot, start, stop or kill something."""
+    return 'operation' if re.search(OPERATION, str(text or '').lower()) else ''
 
 
 def planned_kind(text):
@@ -85,6 +91,12 @@ def _plans(kind, host, details):
             '1. health_check on %s. 2. Create a backup AMI. 3. Launch a clone with the new instance type from the allowed list (migrate_launch). 4. health_check on the clone.%s' % (host, d),
             'Terminate the clone and keep the original instance type.',
             'Clone is healthy on the new type and performance is within threshold.')
+    if kind == 'operation':
+        return (
+            '1. health_check on %s to record the state before. 2. Run the requested restart, reboot, start or stop after the engineer presses Confirm. '
+            '3. health_check again and compare.%s' % (host, d),
+            'Start the service or instance again, or restore from the latest backup AMI if the server does not come back.',
+            'The service or server is running and health_check is clean.')
     return (
         'Executed by MATRIX AI using the approved tools, each step confirmed by an engineer.%s' % d,
         'Revert the change using the pre-change backup (AMI or configuration), then verify with health_check.',
@@ -140,7 +152,7 @@ def create_change_request(a, u):
     short = str(a.get('short_description', '')).strip()
     kind = str(a.get('kind', '')).strip().lower()
     details = str(a.get('details', '')).strip()
-    if kind not in list(PLANNED) + ['other']:
+    if kind not in list(PLANNED) + ['operation', 'other']:
         kind = planned_kind(short + ' ' + details) or 'other'
     if not ci:
         return 'NOT CREATED. Ask the engineer only for the server (CI) name.'
@@ -276,11 +288,13 @@ def _usable(tools, incident_mode, terraform_ready):
     return [x for x in tools if x['function']['name'] not in drop]
 
 
-def _precreate(q, u, user_text):
+def _precreate(q, u, user_text, last_user=''):
     """Planned work on a real server: create (or reuse) the change in code, so the model never has to decide to call a tool.
     The CHG number is handed to the model through the chat context, which console_api adds to the system prompt."""
     try:
         kind = planned_kind(user_text)
+        if not kind:
+            kind = operation_kind(last_user)
         if not kind:
             return q
         host = ''
@@ -320,9 +334,11 @@ def _wrap_chat(g):
             msgs = _json.loads(q.get('messages') or '[]')
             text = ' '.join(str(m.get('content', ''))[:600] for m in msgs[-4:] if isinstance(m, dict))
             user_text = ' | '.join(str(m.get('content', ''))[:300] for m in msgs[-10:] if isinstance(m, dict) and m.get('role') == 'user')
+            mine = [str(m.get('content', ''))[:300] for m in msgs if isinstance(m, dict) and m.get('role') == 'user']
+            last_user = re.sub(r'\[Console:[^\]]*\]', ' ', mine[-1]) if mine else ''
         except Exception:
-            text, user_text = '', ''
-        q = _precreate(q, u, user_text)
+            text, user_text, last_user = '', '', ''
+        q = _precreate(q, u, user_text, last_user)
         chosen = _select(full, text)
         chosen = _usable(chosen, MODE.incident_mode(), bool(os.environ.get('TF_PROJECT', '').strip()))
         g['TOOLS'][:] = chosen
