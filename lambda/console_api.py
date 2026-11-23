@@ -490,6 +490,8 @@ def a_service(q, u):
     op = q.get('op'); svc = str(q.get('service', '')).lower()
     if op not in ('start', 'stop', 'restart', 'status'):
         return {'ok': False, 'error': 'Unknown operation: ' + str(op)}
+    if svc not in SERVICES:
+        return {'ok': False, 'error': 'Service %s is not on the allowed list. Allowed: %s' % (re.sub(r'[^A-Za-z0-9._-]', '', svc)[:40] or '(none)', ', '.join(SERVICES))}
     i = need_instance(q); st, out = ssm_run(i, 'get_service_status' if op == 'status' else op + '_service', svc, 'MATRIX chat ' + u['u'])
     add_note(q.get('sys_id'), '[MATRIX L2 Chat] %s: %s %s on %s -> %s\n%s' % (u['u'], op, svc, i['host'], st, out[:150]))
     return {'ok': True, 'text': ('%s %s on %s [%s]:\n%s' % (op, svc, i['host'], st, out))[:3000]}
@@ -1022,7 +1024,7 @@ def parse_runbooks(arts):
             d, r = steps('Diagnosis Steps'), steps('Remediation Steps')
             for x in d + r:
                 x['known'] = x['tool'] in cat
-            out.append({'title': before[-1] if before else grab('Issue Type'), 'platform': plat, 'match': [x.strip() for x in grab('Alarm Match').split(',') if x.strip()],
+            out.append({'title': re.sub(r'^[#*\s]+', '', before[-1]).strip() if before else grab('Issue Type'), 'platform': plat, 'match': [x.strip() for x in grab('Alarm Match').split(',') if x.strip()],
                         'issue': grab('Issue Type'), 'team': grab('Escalation Team'), 'diag': d, 'rem': r, 'approval': bool(re.match(r'yes\b', grab('Approval Required'), re.I)),
                         'article': a.get('number', '')})
     return out
@@ -1074,4 +1076,9 @@ def handler(event, context):
             out = fn(q, user)
         return res(200, out)
     except Exception as e:
-        return res(200, {'ok': False, 'error': str(e)[:300], 'trace': LAST.id if LAST else ''})
+        msg = str(e)
+        if msg.startswith('ServiceNow 4') and ('Requested URI does not represent any resource' in msg or 'No Record found' in msg):
+            msg = 'That incident was not found in ServiceNow. Check the number and try again.'
+        elif msg.startswith('ServiceNow 403'):
+            msg = 'ServiceNow refused this (403). The integration user lacks a role or ACL for it.'
+        return res(200, {'ok': False, 'error': msg[:300], 'trace': LAST.id if LAST else ''})

@@ -177,3 +177,21 @@ class FalseWaitingClaim(unittest.TestCase):
         self.assertTrue(c.claims_waiting_for_confirm('Please press Confirm on the console.'))
         self.assertTrue(c.claims_waiting_for_confirm('Once you press **Confirm** there, I will continue'))
         self.assertFalse(c.claims_waiting_for_confirm('The disk is at 40 percent and nginx is running.'))
+
+
+class UserTestFindings(unittest.TestCase):
+    def setUp(self):
+        self.src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'console_api.py'), encoding='utf-8').read()
+
+    def test_service_names_are_checked_against_the_allowed_list(self):
+        self.assertIn("if svc not in SERVICES:", self.src)
+
+    def test_missing_incident_gets_a_plain_message(self):
+        self.assertIn("That incident was not found in ServiceNow", self.src)
+
+    def test_failed_confirm_is_returned_untouched_by_closeout(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'matrix_closeout.py'), encoding='utf-8').read()
+        self.assertIn("if not r.get('ok'):\n            return r", src)
+
+    def test_runbook_title_has_no_markdown_hash(self):
+        self.assertIn("re.sub(r'^[#*\s]+', '', before[-1])", self.src)

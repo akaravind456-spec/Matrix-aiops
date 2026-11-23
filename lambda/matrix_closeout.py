@@ -8,6 +8,8 @@ def install(g):
 
     def a_chat_confirm(q, u):
         r = orig(q, u)
+        if not r.get('ok'):
+            return r
         try:
             d = json.loads(g['b64d'](str(q.get('confirm', '')).split('.')[0]))
             tool, a = d['t'], d['a']
