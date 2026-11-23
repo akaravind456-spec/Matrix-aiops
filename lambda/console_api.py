@@ -367,12 +367,32 @@ def a_assign(q, u):
 
 
 CLOSE_CODE = os.environ.get('CLOSE_CODE', 'Solution provided').strip()
+_CC = {}
+
+
+def close_code():
+    """The resolution code to send. Checked against ServiceNow's own list, so a damaged or misspelled CLOSE_CODE setting cannot block closing tickets."""
+    if 'v' in _CC:
+        return _CC['v']
+    norm = lambda t: re.sub(r'[^a-z0-9]', '', str(t).lower())
+    best = CLOSE_CODE
+    try:
+        rows = sn('GET', 'sys_choice', {'sysparm_query': 'name=incident^element=close_code^inactive=false', 'sysparm_fields': 'value,label', 'sysparm_limit': '50'}) or []
+        vals = [raw(r.get('value')) for r in rows if raw(r.get('value'))]
+        if vals and CLOSE_CODE not in vals:
+            same = [v for v in vals if norm(v) == norm(CLOSE_CODE)]
+            pick = same or [v for v in vals if re.search(r'permanent', v, re.I)] or [v for v in vals if re.search(r'solution|resolved', v, re.I)] or vals[:1]
+            best = pick[0]
+    except Exception:
+        pass
+    _CC['v'] = best
+    return best
 
 
 def a_resolve(q, u):
     sid = hexid(q.get('sys_id'))
     notes = re.sub(r'\s+', ' ', str(q.get('notes', '')))[:500].strip() or 'Resolved from the MATRIX console'
-    sn('PATCH', 'incident/' + sid, body={'state': '6', 'close_code': CLOSE_CODE, 'close_notes': '%s (resolved by %s)' % (notes, u['name']),
+    sn('PATCH', 'incident/' + sid, body={'state': '6', 'close_code': close_code(), 'close_notes': '%s (resolved by %s)' % (notes, u['name']),
                                          'work_notes': '[MATRIX] Resolved by L2 %s via console. %s' % (u['u'], notes)})
     return {'ok': True, 'text': 'Incident set to Resolved.'}
 

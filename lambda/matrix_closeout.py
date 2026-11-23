@@ -29,7 +29,7 @@ def install(g):
             sid = g['sys_id_of'](num)
             first = (r.get('text') or '').strip().splitlines()[0][:140]
             g['sn']('PATCH', 'incident/' + sid, body={
-                'state': '6', 'close_code': g['CLOSE_CODE'],
+                'state': '6', 'close_code': g['close_code'](),
                 'close_notes': 'MATRIX AI auto-resolved: %s completed on %s, confirmed by %s.' % (tool, a.get('host', '-'), u['name']),
                 'work_notes': '[MATRIX AI] Done. %s confirmed this work and it was completed: %s on %s.\nResult: %s\nI have resolved this ticket.' % (u['name'], tool.replace('_', ' '), a.get('host', '-'), first)})
             r['text'] = (r.get('text') or '') + '\n\n%s resolved and work note added.' % num

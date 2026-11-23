@@ -210,3 +210,10 @@ class NoActionNeeded(unittest.TestCase):
         self.assertTrue(au._alarm_is_ok(ok))
         self.assertFalse(au._alarm_is_ok(ok + ['Disk-High-x: ALARM (too high)']))
         self.assertFalse(au._alarm_is_ok(['disk 34% used']))
+
+
+class ResolutionCode(unittest.TestCase):
+    def test_code_is_checked_against_servicenow_choices(self):
+        src = open(os.path.join(os.path.dirname(__file__), '..', 'lambda', 'console_api.py'), encoding='utf-8').read()
+        self.assertIn("def close_code():", src)
+        self.assertIn("'close_code': close_code()", src)
