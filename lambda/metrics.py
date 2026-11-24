@@ -125,7 +125,10 @@ def a_dash(q, u):
             if i['status'] == 'resolved' and i.get('resolved_raw') and i.get('created_raw'):
                 try:
                     f = '%Y-%m-%d %H:%M:%S'
-                    mins.append((datetime.strptime(i['resolved_raw'], f) - datetime.strptime(i['created_raw'], f)).total_seconds() / 60)
+                    r_at = datetime.strptime(i['resolved_raw'], f).replace(tzinfo=timezone.utc)
+                    if r_at.timestamp() * 1000 < since:
+                        continue  # only incidents resolved inside the selected window
+                    mins.append((r_at - datetime.strptime(i['created_raw'], f).replace(tzinfo=timezone.utc)).total_seconds() / 60)
                 except ValueError:
                     pass
         res['mttr_min'] = round(sum(mins) / len(mins), 1) if mins else None
