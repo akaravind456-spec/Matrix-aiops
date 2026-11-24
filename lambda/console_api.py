@@ -544,6 +544,8 @@ OPENAI_KEY = os.environ.get('OPENAI_API_KEY', '').strip()
 OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o').strip()
 OPENAI_URL = os.environ.get('OPENAI_URL', 'https://api.openai.com/v1/chat/completions').strip()
 
+import matrix_capability
+
 CHAT_SYSTEM = (
     "You are MATRIX, an SRE assistant inside the L2 engineer console. You are talking to %s, an L2 engineer. "
     "You act by calling tools; never invent command output, incident data or server state. "
@@ -780,6 +782,8 @@ def a_chat(q, u):
             msgs.append({'role': m['role'], 'content': m['content'][:4000]})
     if msgs[-1]['role'] != 'user':
         return {'ok': False, 'error': 'No question to answer'}
+    if not q.get('files') and matrix_capability.capability_question(msgs[-1]['content']):
+        return {'ok': True, 'reply': matrix_capability.CAPABILITY_REPLY, 'confirm': []}
     try:
         files = json.loads(q.get('files') or '[]')
     except Exception:
