@@ -101,13 +101,14 @@ def create_ticket_as_agent(table, short_description, description):
         "caller_id": os.environ.get("AI_AGENT_USER", "matrix ai")})
 
 # ---------- AWS ----------
-def _session():
-    c = boto3.client("sts", region_name=REGION).assume_role(
-        RoleArn=os.environ["EXECUTOR_ROLE_ARN"],
-        RoleSessionName=re.sub(r"[^\w=,.@-]", "", os.environ.get("CURRENT_TICKET", "matrix"))[:60] or "matrix",
-        DurationSeconds=900)["Credentials"]
-    return boto3.Session(aws_access_key_id=c["AccessKeyId"], aws_secret_access_key=c["SecretAccessKey"],
-                         aws_session_token=c["SessionToken"], region_name=REGION)
+def _session(tenant_id=None):
+    """The session that acts in the customer's account. Self-hosted: the single 'default' tenant (the executor role from settings).
+    Vendor-hosted: the named tenant's own role, with its ExternalId (see matrix_tenant.py)."""
+    import matrix_tenant
+    t = matrix_tenant.load(tenant_id)
+    if not t.get("region"):
+        t["region"] = REGION
+    return matrix_tenant.session_for(t, os.environ.get("CURRENT_TICKET", "matrix"))
 
 def _audit(entry):
     print(json.dumps(entry))  # also lands in the Lambda log group

@@ -92,8 +92,8 @@ A second AWS account is needed for A4 and A5 (a test customer). The user must cr
 
 1. Where the vendor account runs, which AWS region(s), and who operates it and is on call.
 2. Price of the vendor-hosted tier (LIC-001 prices were written for self-hosted).
-3. Whether customers supply their own model key or we do (and bill it through).
-4. Approval to create a second AWS account for testing as a pretend customer.
+3. Model keys: **decided, both are offered** (the customer brings their own key, or we supply one and bill it through with a per-tenant spend cap).
+4. Test customer: **decided**, account 115891591036 is tenant 1 for now (a separate second account is still needed to prove isolation in step A4).
 5. The data processing agreement and data-residency position (legal).
 
 ## Change history
