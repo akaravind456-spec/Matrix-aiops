@@ -76,7 +76,7 @@ def _wait(e, txt):
     return 10.0
 
 
-def post(cands, body, timeout=60):
+def post(cands, body, timeout=25):
     now = time.time()
     live = [c for c in cands if COOL.get(c['id'], 0) <= now] or sorted(cands, key=lambda c: COOL.get(c['id'], 0))[:1]
     errs, auth_failed, not_found = [], False, False
@@ -106,7 +106,9 @@ def post(cands, body, timeout=60):
                     COOL[c['id']] = time.time() + 600; errs.append('%s not found (HTTP 404): check its URL and model name' % c['label']); not_found = True; break
                 raise RuntimeError('LLM %s: %s' % (e.code, txt))
             except Exception as e:
-                COOL[c['id']] = time.time() + 20; errs.append('%s %s' % (c['label'], str(e)[:60])); break
+                # a stalled model (timeout) is parked for 2 minutes so the next steps skip it at once; other errors 20 s
+                slow = 'timed out' in str(e).lower() or isinstance(e, TimeoutError)
+                COOL[c['id']] = time.time() + (120 if slow else 20); errs.append('%s %s' % (c['label'], str(e)[:60])); break
     if auth_failed:
         raise RuntimeError('No model could answer (%s). Fix the key for the slot named above (Lambda environment variables).' % '; '.join(errs))
     if not_found:
