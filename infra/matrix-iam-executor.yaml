@@ -10,6 +10,11 @@ Parameters:
   TrustedLambdaRoleArn:
     Type: String
     Description: ARN of the existing MATRIX console Lambda execution role (it assumes the executor role)
+  ExternalId:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: 'Vendor-hosted (Model A) only. A secret the vendor gives this customer. When set, the role can only be assumed by a caller that presents it, which stops another vendor customer from using the vendor trust. Leave empty for a self-hosted install.'
   EnableDecommissionRole:
     Type: String
     Default: 'false'
@@ -18,6 +23,7 @@ Parameters:
 
 Conditions:
   DecomEnabled: !Equals [!Ref EnableDecommissionRole, 'true']
+  HasExternalId: !Not [!Equals [!Ref ExternalId, '']]
 
 Resources:
   AuditLogGroup:
@@ -59,6 +65,10 @@ Resources:
           - Effect: Allow
             Principal: { AWS: !Ref TrustedLambdaRoleArn }
             Action: sts:AssumeRole
+            Condition: !If
+              - HasExternalId
+              - { StringEquals: { 'sts:ExternalId': !Ref ExternalId } }
+              - !Ref AWS::NoValue
       Policies:
         - PolicyName: matrix-executor-policy
           PolicyDocument:
@@ -279,6 +289,10 @@ Resources:
           - Effect: Allow
             Principal: { AWS: !Ref TrustedLambdaRoleArn }
             Action: sts:AssumeRole
+            Condition: !If
+              - HasExternalId
+              - { StringEquals: { 'sts:ExternalId': !Ref ExternalId } }
+              - !Ref AWS::NoValue
       Policies:
         - PolicyName: matrix-decommission-policy
           PolicyDocument:

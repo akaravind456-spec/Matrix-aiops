@@ -219,6 +219,7 @@ Conditions:
   AttachReadOnly: !Equals [!Ref ReadAccess, ReadOnlyAccess]
   HasOperatorRole: !Not [!Equals [!Ref OperatorRoleArn, '']]
   DecomEnabled: !Equals [!Ref EnableDecommissionRole, 'true']
+  HasExternalId: !Not [!Equals [!Ref ExternalId, '']]
 
 Resources:
   Projects:
@@ -498,6 +499,10 @@ Resources:
           - Effect: Allow
             Principal: { AWS: !GetAtt LambdaRole.Arn }
             Action: sts:AssumeRole
+            Condition: !If
+              - HasExternalId
+              - { StringEquals: { 'sts:ExternalId': !Ref ExternalId } }
+              - !Ref AWS::NoValue
       Policies:
         - PolicyName: matrix-executor-policy
           PolicyDocument:
@@ -719,6 +724,10 @@ Resources:
           - Effect: Allow
             Principal: { AWS: !GetAtt LambdaRole.Arn }
             Action: sts:AssumeRole
+            Condition: !If
+              - HasExternalId
+              - { StringEquals: { 'sts:ExternalId': !Ref ExternalId } }
+              - !Ref AWS::NoValue
       Policies:
         - PolicyName: matrix-decommission-policy
           PolicyDocument:
